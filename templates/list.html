@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% block title %}Все работы{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h2>Все работы</h2>
+            <p class="subtle">Найдено: {{ works|length }} {{ 'запись' if works|length == 1 else ('записи' if works|length in [2,3,4] else 'записей') }}</p>
+        </div>
+    </div>
+
+    <details class="filters-panel">
+        <summary>Фильтры</summary>
+        <form method="get" class="filters-form">
+            <input type="hidden" name="filtered" value="1">
+            <label class="filter-field">
+                <span>Врач</span>
+                <details class="multi-picker" data-placeholder="Все">
+                    <summary class="multi-picker-summary">
+                        <span class="multi-picker-label">Все</span>
+                    </summary>
+                    <div class="multi-picker-options">
+                        {% for doctor in doctors %}
+                            <label class="multi-picker-option">
+                                <input type="checkbox" name="doctor" value="{{ doctor }}" {% if doctor in filters.doctor %}checked{% endif %}>
+                                <span>{{ doctor }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </details>
+            </label>
+
+            <label class="filter-field">
+                <span>Кабинет</span>
+                <details class="multi-picker" data-placeholder="Все">
+                    <summary class="multi-picker-summary">
+                        <span class="multi-picker-label">Все</span>
+                    </summary>
+                    <div class="multi-picker-options">
+                        {% for room in rooms %}
+                            <label class="multi-picker-option">
+                                <input type="checkbox" name="room" value="{{ room }}" {% if room in filters.room %}checked{% endif %}>
+                                <span>{{ room }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </details>
+            </label>
+
+            <label class="filter-field">
+                <span>Пациент</span>
+                <details class="multi-picker" data-placeholder="Все">
+                    <summary class="multi-picker-summary">
+                        <span class="multi-picker-label">Все</span>
+                    </summary>
+                    <div class="multi-picker-options">
+                        {% for patient in patients %}
+                            <label class="multi-picker-option">
+                                <input type="checkbox" name="patient" value="{{ patient }}" {% if patient in filters.patient %}checked{% endif %}>
+                                <span>{{ patient }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </details>
+            </label>
+
+            <label class="filter-field">
+                <span>Дата поступления</span>
+                <div class="date-range">
+                    <input type="date" name="received_date_from" value="{{ filters.received_date_from }}" placeholder="От">
+                    <input type="date" name="received_date_to" value="{{ filters.received_date_to }}" placeholder="До">
+                </div>
+            </label>
+
+            <label class="filter-field">
+                <span>Дата сдачи</span>
+                <div class="date-range">
+                    <input type="date" name="submission_date_from" value="{{ filters.submission_date_from }}" placeholder="От">
+                    <input type="date" name="submission_date_to" value="{{ filters.submission_date_to }}" placeholder="До">
+                </div>
+            </label>
+
+            <label class="filter-field">
+                <span>Статус</span>
+                <details class="multi-picker" data-placeholder="Все">
+                    <summary class="multi-picker-summary">
+                        <span class="multi-picker-label">Все</span>
+                    </summary>
+                    <div class="multi-picker-options">
+                        <label class="multi-picker-option">
+                            <input type="checkbox" name="status" value="in_progress" {% if 'in_progress' in filters.status %}checked{% endif %}>
+                            <span>В работе</span>
+                        </label>
+                        <label class="multi-picker-option">
+                            <input type="checkbox" name="status" value="fitting" {% if 'fitting' in filters.status %}checked{% endif %}>
+                            <span>На примерке</span>
+                        </label>
+                        <label class="multi-picker-option">
+                            <input type="checkbox" name="status" value="done" {% if 'done' in filters.status %}checked{% endif %}>
+                            <span>Сдана</span>
+                        </label>
+                    </div>
+                </details>
+            </label>
+
+            <div class="filters-actions">
+                <button type="submit" class="btn">Применить</button>
+                <a href="{{ url_for('works_list') }}" class="btn secondary">Сброс</a>
+            </div>
+        </form>
+    </details>
+
+    {% if works %}
+        <div class="works-list">
+            {% for work in works %}
+                <article class="work-item">
+                    <div class="work-item-header">
+                        <h3 class="work-title">{{ work.patient }} · {{ work.work_type }}</h3>
+                        <span class="status-badge status-{{ work.status_key }}">{{ work.status_label }}</span>
+                    </div>
+
+                    <div class="work-grid work-meta-grid">
+                        <div class="meta-item">
+                            <span class="label">Кабинет</span>
+                            <span class="value">{{ work.room or '—' }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Врач</span>
+                            <span class="value">{{ work.doctor }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Пациент</span>
+                            <span class="value">{{ work.patient }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Вид работы</span>
+                            <span class="value">{{ work.work_type }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Поступила</span>
+                            <span class="value">{{ work.received_date or '—' }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Сдача</span>
+                            <span class="value">{{ work.submission_date or '—' }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Примечания</span>
+                            <span class="value">
+                                {% if work.note_tags %}
+                                    <span class="tags">
+                                        {% for tag in work.note_tags %}
+                                            <span class="tag">{{ tag }}</span>
+                                        {% endfor %}
+                                    </span>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="formula-view">
+                        <span class="label">Формула</span>
+                        <div class="formula-scroll-wrapper">
+                            <div
+                                class="formula-halves
+                                {% if work.has_upper_formula and work.has_lower_formula %}line-between{% elif work.has_upper_formula %}line-bottom{% elif work.has_lower_formula %}line-top{% endif %}"
+                            >
+                                {% if work.has_upper_formula %}
+                                    <div class="formula-half">
+                                        <div class="quarter-card quarter-divider-right">
+                                            <table class="formula-table quarter-table">
+                                                <tr>
+                                                    {% for tooth in formula_quadrants[0].teeth %}
+                                                        <td class="{% if (tooth|string in work.formula_set) and not work.upper_full_removable %}active{% endif %}">
+                                                            {% if work.upper_full_removable %}—{% elif tooth|string in work.formula_set %}{{ tooth }}{% else %}—{% endif %}
+                                                        </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="quarter-card">
+                                            <table class="formula-table quarter-table">
+                                                <tr>
+                                                    {% for tooth in formula_quadrants[1].teeth %}
+                                                        <td class="{% if (tooth|string in work.formula_set) and not work.upper_full_removable %}active{% endif %}">
+                                                            {% if work.upper_full_removable %}—{% elif tooth|string in work.formula_set %}{{ tooth }}{% else %}—{% endif %}
+                                                        </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                {% if work.has_lower_formula %}
+                                    <div class="formula-half">
+                                        <div class="quarter-card quarter-divider-right">
+                                            <table class="formula-table quarter-table">
+                                                <tr>
+                                                    {% for tooth in formula_quadrants[2].teeth %}
+                                                        <td class="{% if (tooth|string in work.formula_set) and not work.lower_full_removable %}active{% endif %}">
+                                                            {% if work.lower_full_removable %}—{% elif tooth|string in work.formula_set %}{{ tooth }}{% else %}—{% endif %}
+                                                        </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="quarter-card">
+                                            <table class="formula-table quarter-table">
+                                                <tr>
+                                                    {% for tooth in formula_quadrants[3].teeth %}
+                                                        <td class="{% if (tooth|string in work.formula_set) and not work.lower_full_removable %}active{% endif %}">
+                                                            {% if work.lower_full_removable %}—{% elif tooth|string in work.formula_set %}{{ tooth }}{% else %}—{% endif %}
+                                                        </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fittings-section">
+                        <div class="fittings-actions">
+                            {% if not work.submission_date %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('submit_work', work_id=work.id) }}"
+                                    class="fitting-action-form js-date-form"
+                                    data-action-title="Сдать работу"
+                                    data-doctor="{{ work.doctor }}"
+                                    data-patient="{{ work.patient }}"
+                                    data-default-date="{{ today }}"
+                                >
+                                    <input type="hidden" name="submission_date" value="{{ today }}" class="js-date-value">
+                                    <button type="submit" class="btn secondary" data-submitting>Сдать работу</button>
+                                </form>
+                            {% endif %}
+
+                            {% if work.open_fitting_id %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('return_from_fitting', work_id=work.id, fitting_id=work.open_fitting_id) }}"
+                                    class="fitting-action-form js-date-form"
+                                    data-action-title="Вернулось с примерки"
+                                    data-doctor="{{ work.doctor }}"
+                                    data-patient="{{ work.patient }}"
+                                    data-default-date="{{ today }}"
+                                >
+                                    <input type="hidden" name="returned_date" value="{{ today }}" class="js-date-value">
+                                    <button type="submit" class="btn warning" data-submitting>Вернулось с примерки</button>
+                                </form>
+                            {% elif not work.submission_date %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('send_to_fitting', work_id=work.id) }}"
+                                    class="fitting-action-form js-date-form"
+                                    data-action-title="Отправить в примерку"
+                                    data-doctor="{{ work.doctor }}"
+                                    data-patient="{{ work.patient }}"
+                                    data-default-date="{{ today }}"
+                                >
+                                    <input type="hidden" name="sent_date" value="{{ today }}" class="js-date-value">
+                                    <button type="submit" class="btn" data-submitting>Отправить в примерку</button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        <div class="fittings-history">
+                            <span class="label">Примерки</span>
+                            {% if work.fittings %}
+                                <ul class="fittings-list">
+                                    {% for fitting in work.fittings %}
+                                        <li>
+                                            <span><strong>Отправка:</strong> {{ fitting.sent_date }}</span>
+                                            <span><strong>Возврат:</strong>
+                                                {% if fitting.returned_date %}{{ fitting.returned_date }}{% else %}<em>в работе</em>{% endif %}
+                                            </span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="fittings-empty">Примерок не было.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">🦷</div>
+            <p class="empty-state-text">Записей не найдено.<br>Попробуйте изменить фильтры или <a href="{{ url_for('new_work') }}" style="color:var(--primary);">добавьте первую работу</a>.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<div id="date-modal" class="modal-backdrop">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="date-modal-title" data-modal-sheet>
+        <div class="modal-handle"></div>
+        <h3 id="date-modal-title">Выберите дату</h3>
+        <input id="date-modal-input" type="date">
+        <div class="modal-actions">
+            <button id="date-modal-confirm" type="button" class="btn">Подтвердить</button>
+            <button id="date-modal-cancel" type="button" class="btn secondary">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    /* ---------- Date modal ---------- */
+    const forms        = document.querySelectorAll(".js-date-form");
+    const modal        = document.getElementById("date-modal");
+    const modalTitle   = document.getElementById("date-modal-title");
+    const modalInput   = document.getElementById("date-modal-input");
+    const modalConfirm = document.getElementById("date-modal-confirm");
+    const modalCancel  = document.getElementById("date-modal-cancel");
+    if (!forms.length || !modal) return;
+
+    let activeForm = null;
+
+    function getLocalToday() {
+        const now = new Date();
+        return [
+            now.getFullYear(),
+            String(now.getMonth() + 1).padStart(2, "0"),
+            String(now.getDate()).padStart(2, "0"),
+        ].join("-");
+    }
+
+    function closeModal() {
+        modal.classList.remove("open");
+        activeForm = null;
+    }
+
+    forms.forEach(function (form) {
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            activeForm = form;
+            const doctor  = form.dataset.doctor  || "-";
+            const patient = form.dataset.patient || "-";
+            modalTitle.textContent = (form.dataset.actionTitle || "Действие") + ": " + doctor + " / " + patient;
+            modalInput.value = form.dataset.defaultDate || getLocalToday();
+            modal.classList.add("open");
+            setTimeout(function () { modalInput.focus(); }, 320);
+        });
+    });
+
+    modalConfirm.addEventListener("click", function () {
+        if (!activeForm) { closeModal(); return; }
+        if (!modalInput.value) { alert("Выберите дату."); return; }
+        const input = activeForm.querySelector(".js-date-value");
+        if (input) input.value = modalInput.value;
+        const btn = activeForm.querySelector("[data-submitting]");
+        if (btn) btn.setAttribute("aria-busy", "true");
+        const f = activeForm;
+        closeModal();
+        f.submit();
+    });
+
+    modalCancel.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", function (e) {
+        if (e.target === modal) closeModal();
+    });
+
+    /* Swipe-down to dismiss (mobile) */
+    const sheet = modal.querySelector("[data-modal-sheet]");
+    let touchY = 0;
+    if (sheet) {
+        sheet.addEventListener("touchstart", function (e) {
+            touchY = e.touches[0].clientY;
+        }, { passive: true });
+        sheet.addEventListener("touchend", function (e) {
+            if (e.changedTouches[0].clientY - touchY > 60) closeModal();
+        }, { passive: true });
+    }
+
+    /* ---------- Loading states for non-modal buttons ---------- */
+    document.querySelectorAll("[data-submitting]").forEach(function (btn) {
+        const f = btn.closest("form");
+        if (!f || f.classList.contains("js-date-form")) return;
+        f.addEventListener("submit", function () {
+            btn.setAttribute("aria-busy", "true");
+            btn.disabled = true;
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
+    /* ---------- Multi-picker dropdowns ---------- */
+    const pickers = document.querySelectorAll(".multi-picker");
+    if (!pickers.length) return;
+
+    function updateLabel(picker) {
+        const placeholder = picker.dataset.placeholder || "Все";
+        const label   = picker.querySelector(".multi-picker-label");
+        const checked = picker.querySelectorAll("input[type='checkbox']:checked");
+        if (!label) return;
+
+        if (!checked.length) {
+            label.textContent = placeholder;
+            return;
+        }
+
+        label.innerHTML = "";
+        const values   = Array.from(checked).map(function (c) {
+                const span = c.closest("label") && c.closest("label").querySelector("span");
+                return span ? span.textContent.trim() : c.value;
+            });
+        const maxPills = 3;
+
+        values.slice(0, maxPills).forEach(function (v) {
+            const pill = document.createElement("span");
+            pill.className = "picker-pill";
+            pill.textContent = v;
+            label.appendChild(pill);
+        });
+
+        if (values.length > maxPills) {
+            const more = document.createElement("span");
+            more.className = "picker-pill picker-pill-more";
+            more.textContent = "+" + (values.length - maxPills);
+            label.appendChild(more);
+        }
+    }
+
+    pickers.forEach(function (picker) {
+        updateLabel(picker);
+
+        picker.addEventListener("toggle", function () {
+            if (!picker.open) return;
+            pickers.forEach(function (other) {
+                if (other !== picker) other.open = false;
+            });
+        });
+
+        picker.querySelectorAll("input[type='checkbox']").forEach(function (cb) {
+            cb.addEventListener("change", function () { updateLabel(picker); });
+        });
+    });
+
+    document.addEventListener("click", function (e) {
+        pickers.forEach(function (p) {
+            if (!p.contains(e.target)) p.open = false;
+        });
+    });
+
+    /* Close filters panel by default on small screens */
+    if (window.matchMedia("(max-width: 559px)").matches) {
+        const panel = document.querySelector(".filters-panel");
+        if (panel) panel.removeAttribute("open");
+    }
+})();
+</script>
+{% endblock %}
