@@ -15,25 +15,8 @@
         <form method="get" class="filters-form">
             <input type="hidden" name="filtered" value="1">
             <label class="filter-field">
-                <span>Врач</span>
-                <details class="multi-picker" data-placeholder="Все">
-                    <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Все</span>
-                    </summary>
-                    <div class="multi-picker-options">
-                        {% for doctor in doctors %}
-                            <label class="multi-picker-option">
-                                <input type="checkbox" name="doctor" value="{{ doctor }}" {% if doctor in filters.doctor %}checked{% endif %}>
-                                <span>{{ doctor }}</span>
-                            </label>
-                        {% endfor %}
-                    </div>
-                </details>
-            </label>
-
-            <label class="filter-field">
                 <span>Кабинет</span>
-                <details class="multi-picker" data-placeholder="Все">
+                <details class="multi-picker" data-placeholder="Все" data-searchable>
                     <summary class="multi-picker-summary">
                         <span class="multi-picker-label">Все</span>
                     </summary>
@@ -49,8 +32,25 @@
             </label>
 
             <label class="filter-field">
+                <span>Врач</span>
+                <details class="multi-picker" data-placeholder="Все" data-searchable>
+                    <summary class="multi-picker-summary">
+                        <span class="multi-picker-label">Все</span>
+                    </summary>
+                    <div class="multi-picker-options">
+                        {% for doctor in doctors %}
+                            <label class="multi-picker-option">
+                                <input type="checkbox" name="doctor" value="{{ doctor }}" {% if doctor in filters.doctor %}checked{% endif %}>
+                                <span>{{ doctor }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </details>
+            </label>
+
+            <label class="filter-field">
                 <span>Пациент</span>
-                <details class="multi-picker" data-placeholder="Все">
+                <details class="multi-picker" data-placeholder="Все" data-searchable>
                     <summary class="multi-picker-summary">
                         <span class="multi-picker-label">Все</span>
                     </summary>
@@ -438,11 +438,36 @@
     pickers.forEach(function (picker) {
         updateLabel(picker);
 
+        /* Inject search input for searchable pickers */
+        if ("searchable" in picker.dataset) {
+            var optionsDiv = picker.querySelector(".multi-picker-options");
+            var searchInput = document.createElement("input");
+            searchInput.type = "text";
+            searchInput.className = "multi-picker-search";
+            searchInput.placeholder = "Поиск...";
+            searchInput.autocomplete = "off";
+            optionsDiv.insertBefore(searchInput, optionsDiv.firstChild);
+
+            searchInput.addEventListener("input", function () {
+                var q = searchInput.value.toLowerCase();
+                optionsDiv.querySelectorAll(".multi-picker-option").forEach(function (opt) {
+                    var text = opt.querySelector("span") ? opt.querySelector("span").textContent.toLowerCase() : "";
+                    opt.style.display = text.includes(q) ? "" : "none";
+                });
+            });
+
+            /* Prevent closing the picker when typing */
+            searchInput.addEventListener("click", function (e) { e.stopPropagation(); });
+        }
+
         picker.addEventListener("toggle", function () {
             if (!picker.open) return;
             pickers.forEach(function (other) {
                 if (other !== picker) other.open = false;
             });
+            /* Focus search input when opened */
+            var s = picker.querySelector(".multi-picker-search");
+            if (s) { s.value = ""; s.dispatchEvent(new Event("input")); setTimeout(function () { s.focus(); }, 50); }
         });
 
         picker.querySelectorAll("input[type='checkbox']").forEach(function (cb) {

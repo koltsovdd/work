@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import sqlite3
+import functools
+import os
 from datetime import datetime
-from pathlib import Path
 
-from flask import Flask, flash, g, redirect, render_template, request, url_for
+import psycopg2
+import psycopg2.extras
+from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE = BASE_DIR / "works.db"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Формула представлена как 4 четверти зубов человека.
 FORMULA_QUADRANTS = [
@@ -24,10 +26,9 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "dev-key-change-me"
 
 
-def get_db() -> sqlite3.Connection:
+def get_db() -> psycopg2.extensions.connection:
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
+        g.db = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     return g.db
 
 
@@ -40,10 +41,11 @@ def close_db(_error: Exception | None) -> None:
 
 def init_db() -> None:
     db = get_db()
-    db.execute(
+    cur = db.cursor()
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS works (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             room TEXT NOT NULL,
             doctor TEXT NOT NULL,
             patient TEXT NOT NULL,
@@ -58,20 +60,23 @@ def init_db() -> None:
         )
         """
     )
-    columns = {
-        row["name"]
-        for row in db.execute("PRAGMA table_info(works)").fetchall()
-    }
+    cur.execute(
+        """
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'works'
+        """
+    )
+    columns = {row["column_name"] for row in cur.fetchall()}
     if "received_date" not in columns:
-        db.execute("ALTER TABLE works ADD COLUMN received_date TEXT NOT NULL DEFAULT ''")
+        cur.execute("ALTER TABLE works ADD COLUMN received_date TEXT NOT NULL DEFAULT ''")
     if "upper_full_removable" not in columns:
-        db.execute("ALTER TABLE works ADD COLUMN upper_full_removable INTEGER NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE works ADD COLUMN upper_full_removable INTEGER NOT NULL DEFAULT 0")
     if "lower_full_removable" not in columns:
-        db.execute("ALTER TABLE works ADD COLUMN lower_full_removable INTEGER NOT NULL DEFAULT 0")
-    db.execute(
+        cur.execute("ALTER TABLE works ADD COLUMN lower_full_removable INTEGER NOT NULL DEFAULT 0")
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS fittings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             work_id INTEGER NOT NULL,
             sent_date TEXT NOT NULL,
             returned_date TEXT,
@@ -81,12 +86,114 @@ def init_db() -> None:
         )
         """
     )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     db.commit()
+    cur.close()
 
 
 @app.before_request
 def ensure_db() -> None:
     init_db()
+
+
+def login_required(view):
+    @functools.wraps(view)
+    def wrapped(**kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        return view(**kwargs)
+    return wrapped
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if "user_id" in session:
+        return redirect(url_for("works_list"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+
+        errors = []
+        if not email:
+            errors.append("Email обязателен.")
+        if not name:
+            errors.append("Имя обязательно.")
+        if not password:
+            errors.append("Пароль обязателен.")
+        elif len(password) < 6:
+            errors.append("Пароль должен быть не короче 6 символов.")
+        elif password != password2:
+            errors.append("Пароли не совпадают.")
+
+        if not errors:
+            db = get_db()
+            cur = db.cursor()
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cur.fetchone():
+                errors.append("Пользователь с таким email уже существует.")
+            cur.close()
+
+        if errors:
+            for error in errors:
+                flash(error, "error")
+            return render_template("register.html", form_data=request.form)
+
+        db = get_db()
+        cur = db.cursor()
+        cur.execute(
+            "INSERT INTO users (email, name, password_hash, created_at) VALUES (%s, %s, %s, %s)",
+            (email, name, generate_password_hash(password), datetime.utcnow().isoformat()),
+        )
+        cur.close()
+        db.commit()
+        flash("Регистрация прошла успешно. Войдите в систему.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html", form_data={})
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "user_id" in session:
+        return redirect(url_for("works_list"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT id, name, password_hash FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+        cur.close()
+
+        if not user or not check_password_hash(user["password_hash"], password):
+            flash("Неверный email или пароль.", "error")
+            return render_template("login.html", form_data=request.form)
+
+        session.clear()
+        session["user_id"] = user["id"]
+        session["user_name"] = user["name"]
+        return redirect(url_for("works_list"))
+
+    return render_template("login.html", form_data={})
+
+
+@app.post("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def parse_formula(formula_text: str) -> set[str]:
@@ -119,6 +226,7 @@ def parse_iso_date(value: str, field_title: str) -> tuple[str | None, str | None
 
 
 @app.route("/")
+@login_required
 def works_list() -> str:
     db = get_db()
     selected_rooms = [item.strip() for item in request.args.getlist("room") if item.strip()]
@@ -140,32 +248,32 @@ def works_list() -> str:
     }
 
     conditions = []
-    params: list[str] = []
+    params: list = []
     if filters["room"]:
-        placeholders = ",".join("?" for _ in filters["room"])
+        placeholders = ",".join("%s" for _ in filters["room"])
         conditions.append(f"room IN ({placeholders})")
         params.extend(filters["room"])
     if filters["doctor"]:
-        placeholders = ",".join("?" for _ in filters["doctor"])
+        placeholders = ",".join("%s" for _ in filters["doctor"])
         conditions.append(f"doctor IN ({placeholders})")
         params.extend(filters["doctor"])
     if filters["patient"]:
-        placeholders = ",".join("?" for _ in filters["patient"])
+        placeholders = ",".join("%s" for _ in filters["patient"])
         conditions.append(f"patient IN ({placeholders})")
         params.extend(filters["patient"])
     if filters["received_date_from"]:
-        conditions.append("received_date >= ?")
+        conditions.append("received_date >= %s")
         params.append(filters["received_date_from"])
     if filters["received_date_to"]:
-        conditions.append("received_date <= ?")
+        conditions.append("received_date <= %s")
         params.append(filters["received_date_to"])
     if filters["submission_date_from"] or filters["submission_date_to"]:
         conditions.append("submission_date != ''")
     if filters["submission_date_from"]:
-        conditions.append("submission_date >= ?")
+        conditions.append("submission_date >= %s")
         params.append(filters["submission_date_from"])
     if filters["submission_date_to"]:
-        conditions.append("submission_date <= ?")
+        conditions.append("submission_date <= %s")
         params.append(filters["submission_date_to"])
     if filters["status"]:
         status_parts = []
@@ -195,13 +303,17 @@ def works_list() -> str:
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY id DESC"
-    rows = db.execute(sql, params).fetchall()
+    cur = db.cursor()
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    cur.close()
 
     work_ids = [row["id"] for row in rows]
-    fitting_rows: list[sqlite3.Row] = []
+    fitting_rows: list[dict] = []
     if work_ids:
-        placeholders = ",".join("?" for _ in work_ids)
-        fitting_rows = db.execute(
+        placeholders = ",".join("%s" for _ in work_ids)
+        cur = db.cursor()
+        cur.execute(
             f"""
             SELECT id, work_id, sent_date, returned_date
             FROM fittings
@@ -209,41 +321,18 @@ def works_list() -> str:
             ORDER BY id DESC
             """,
             work_ids,
-        ).fetchall()
+        )
+        fitting_rows = cur.fetchall()
+        cur.close()
 
-    doctors = [
-        row["doctor"]
-        for row in db.execute(
-            """
-            SELECT DISTINCT doctor
-            FROM works
-            WHERE doctor != ''
-            ORDER BY doctor COLLATE NOCASE
-            """
-        ).fetchall()
-    ]
-    patients = [
-        row["patient"]
-        for row in db.execute(
-            """
-            SELECT DISTINCT patient
-            FROM works
-            WHERE patient != ''
-            ORDER BY patient COLLATE NOCASE
-            """
-        ).fetchall()
-    ]
-    rooms = [
-        row["room"]
-        for row in db.execute(
-            """
-            SELECT DISTINCT room
-            FROM works
-            WHERE room != ''
-            ORDER BY room COLLATE NOCASE
-            """
-        ).fetchall()
-    ]
+    cur = db.cursor()
+    cur.execute("SELECT doctor FROM (SELECT DISTINCT doctor FROM works WHERE doctor != '') t ORDER BY lower(doctor)")
+    doctors = [row["doctor"] for row in cur.fetchall()]
+    cur.execute("SELECT patient FROM (SELECT DISTINCT patient FROM works WHERE patient != '') t ORDER BY lower(patient)")
+    patients = [row["patient"] for row in cur.fetchall()]
+    cur.execute("SELECT room FROM (SELECT DISTINCT room FROM works WHERE room != '') t ORDER BY lower(room)")
+    rooms = [row["room"] for row in cur.fetchall()]
+    cur.close()
 
     fittings_by_work: dict[int, list[dict[str, str | int | None]]] = {}
     open_fitting_by_work: dict[int, int] = {}
@@ -314,6 +403,7 @@ def works_list() -> str:
 
 
 @app.route("/new", methods=["GET", "POST"])
+@login_required
 def new_work() -> str:
     if request.method == "POST":
         room = request.form.get("room", "").strip()
@@ -373,13 +463,14 @@ def new_work() -> str:
         )
 
         db = get_db()
-        db.execute(
+        cur = db.cursor()
+        cur.execute(
             """
             INSERT INTO works (
                 room, doctor, patient, formula, upper_full_removable, lower_full_removable,
                 work_type, note, received_date, submission_date, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 room,
@@ -395,6 +486,7 @@ def new_work() -> str:
                 datetime.utcnow().isoformat(),
             ),
         )
+        cur.close()
         db.commit()
         flash("Работа успешно добавлена.", "success")
         return redirect(url_for("works_list"))
@@ -412,108 +504,129 @@ def new_work() -> str:
 
 
 @app.post("/works/<int:work_id>/fittings/send")
+@login_required
 def send_to_fitting(work_id: int) -> str:
     db = get_db()
-    work = db.execute("SELECT id FROM works WHERE id = ?", (work_id,)).fetchone()
+    cur = db.cursor()
+    cur.execute("SELECT id FROM works WHERE id = %s", (work_id,))
+    work = cur.fetchone()
     if not work:
+        cur.close()
         flash("Работа не найдена.", "error")
         return redirect(url_for("works_list"))
 
-    open_fitting = db.execute(
+    cur.execute(
         """
         SELECT id
         FROM fittings
-        WHERE work_id = ? AND returned_date IS NULL
+        WHERE work_id = %s AND returned_date IS NULL
         ORDER BY id DESC
         LIMIT 1
         """,
         (work_id,),
-    ).fetchone()
+    )
+    open_fitting = cur.fetchone()
     if open_fitting:
+        cur.close()
         flash("Эта работа уже находится в примерке.", "error")
         return redirect(url_for("works_list"))
 
     sent_date, date_error = parse_iso_date(request.form.get("sent_date", ""), "Дата отправки")
     if date_error:
+        cur.close()
         flash(date_error, "error")
         return redirect(url_for("works_list"))
 
-    db.execute(
+    cur.execute(
         """
         INSERT INTO fittings (work_id, sent_date, returned_date, created_at, returned_at)
-        VALUES (?, ?, NULL, ?, NULL)
+        VALUES (%s, %s, NULL, %s, NULL)
         """,
         (work_id, sent_date, datetime.utcnow().isoformat()),
     )
+    cur.close()
     db.commit()
     flash("Работа отправлена в примерку.", "success")
     return redirect(url_for("works_list"))
 
 
 @app.post("/works/<int:work_id>/fittings/<int:fitting_id>/return")
+@login_required
 def return_from_fitting(work_id: int, fitting_id: int) -> str:
     db = get_db()
-    fitting = db.execute(
+    cur = db.cursor()
+    cur.execute(
         """
         SELECT id
         FROM fittings
-        WHERE id = ? AND work_id = ? AND returned_date IS NULL
+        WHERE id = %s AND work_id = %s AND returned_date IS NULL
         """,
         (fitting_id, work_id),
-    ).fetchone()
+    )
+    fitting = cur.fetchone()
     if not fitting:
+        cur.close()
         flash("Открытая примерка не найдена.", "error")
         return redirect(url_for("works_list"))
 
     returned_date, date_error = parse_iso_date(request.form.get("returned_date", ""), "Дата возврата")
     if date_error:
+        cur.close()
         flash(date_error, "error")
         return redirect(url_for("works_list"))
 
-    db.execute(
+    cur.execute(
         """
         UPDATE fittings
-        SET returned_date = ?, returned_at = ?
-        WHERE id = ?
+        SET returned_date = %s, returned_at = %s
+        WHERE id = %s
         """,
         (returned_date, datetime.utcnow().isoformat(), fitting_id),
     )
+    cur.close()
     db.commit()
     flash("Работа вернулась с примерки.", "success")
     return redirect(url_for("works_list"))
 
 
 @app.post("/works/<int:work_id>/submit")
+@login_required
 def submit_work(work_id: int) -> str:
     db = get_db()
-    work = db.execute(
+    cur = db.cursor()
+    cur.execute(
         """
         SELECT id, submission_date
         FROM works
-        WHERE id = ?
+        WHERE id = %s
         """,
         (work_id,),
-    ).fetchone()
+    )
+    work = cur.fetchone()
     if not work:
+        cur.close()
         flash("Работа не найдена.", "error")
         return redirect(url_for("works_list"))
     if work["submission_date"]:
+        cur.close()
         flash("Работа уже сдана.", "error")
         return redirect(url_for("works_list"))
 
     submission_date, date_error = parse_iso_date(request.form.get("submission_date", ""), "Дата сдачи")
     if date_error:
+        cur.close()
         flash(date_error, "error")
         return redirect(url_for("works_list"))
 
-    db.execute(
+    cur.execute(
         """
         UPDATE works
-        SET submission_date = ?
-        WHERE id = ?
+        SET submission_date = %s
+        WHERE id = %s
         """,
         (submission_date, work_id),
     )
+    cur.close()
     db.commit()
     flash("Работа сдана.", "success")
     return redirect(url_for("works_list"))

@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1a6bf5">
-    <title>{% block title %}Работы{% endblock %}</title>
+    <title>{% block title %}Роботи{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,13 +13,25 @@
 <body>
 <div class="container">
     <header class="header">
-        <h1>Учёт работ</h1>
+        <h1>Облік робіт</h1>
         <nav class="nav">
-            {% if request.endpoint != 'works_list' %}
-                <a href="{{ url_for('works_list') }}">Все работы</a>
-            {% endif %}
-            {% if request.endpoint != 'new_work' %}
-                <a href="{{ url_for('new_work') }}">+ Добавить</a>
+            {% if session.user_id %}
+                {% if request.endpoint != 'works_list' %}
+                    <a href="{{ url_for('works_list') }}">Усі роботи</a>
+                {% endif %}
+                {% if request.endpoint != 'new_work' %}
+                    <a href="{{ url_for('new_work') }}">+ Додати</a>
+                {% endif %}
+                <div class="user-menu">
+                    <button class="btn secondary user-menu-toggle" type="button" aria-expanded="false">
+                        {{ session.user_name }} ▾
+                    </button>
+                    <div class="user-menu-dropdown">
+                        <form method="post" action="{{ url_for('logout') }}">
+                            <button type="submit" class="user-menu-item">Вийти</button>
+                        </form>
+                    </div>
+                </div>
             {% endif %}
         </nav>
     </header>
@@ -39,5 +51,23 @@
     </main>
 </div>
 {% block scripts %}{% endblock %}
+<script>
+(function () {
+    var toggle = document.querySelector(".user-menu-toggle");
+    var dropdown = document.querySelector(".user-menu-dropdown");
+    if (!toggle || !dropdown) return;
+
+    toggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = dropdown.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    document.addEventListener("click", function () {
+        dropdown.classList.remove("open");
+        toggle.setAttribute("aria-expanded", "false");
+    });
+})();
+</script>
 </body>
 </html>

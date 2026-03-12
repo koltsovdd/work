@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+    <div class="card-header">
+        <h2>Вход</h2>
+    </div>
+
+    <form method="post" class="work-form">
+        <div class="form-grid form-grid--single">
+            <label class="form-field">
+                <span class="field-label">Email <span class="req">*</span></span>
+                <input type="email" name="email" value="{{ form_data.get('email', '') }}" required autofocus placeholder="you@example.com">
+            </label>
+
+            <label class="form-field">
+                <span class="field-label">Пароль <span class="req">*</span></span>
+                <input type="password" name="password" required placeholder="Введите пароль">
+            </label>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="btn" data-submitting>Войти</button>
+            <a href="{{ url_for('register') }}" class="btn secondary">Регистрация</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

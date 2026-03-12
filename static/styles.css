@@ -477,6 +477,24 @@ body {
     display: grid;
 }
 
+.multi-picker-search {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-sm);
+    font: inherit;
+    font-size: 0.88rem;
+    background: #fff;
+    outline: none;
+}
+
+.multi-picker-search:focus {
+    border-color: var(--primary);
+}
+
 .multi-picker-option {
     display: flex;
     align-items: center;
@@ -1344,4 +1362,56 @@ body {
     .work-grid.work-meta-grid { padding: 12px; }
     .formula-view { padding: 10px 12px; }
     .fittings-section { padding: 10px 12px; }
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+.auth-card {
+    max-width: 440px;
+    margin: 40px auto;
+}
+
+.form-grid--single {
+    grid-template-columns: 1fr !important;
+}
+
+.user-menu {
+    position: relative;
+}
+
+.user-menu-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-sm);
+    min-width: 120px;
+    z-index: 200;
+    overflow: hidden;
+}
+
+.user-menu-dropdown.open {
+    display: block;
+}
+
+.user-menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    text-align: left;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.user-menu-item:hover {
+    background: var(--surface);
 }
