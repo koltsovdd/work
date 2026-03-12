@@ -73,6 +73,8 @@ def init_db() -> None:
         cur.execute("ALTER TABLE works ADD COLUMN upper_full_removable INTEGER NOT NULL DEFAULT 0")
     if "lower_full_removable" not in columns:
         cur.execute("ALTER TABLE works ADD COLUMN lower_full_removable INTEGER NOT NULL DEFAULT 0")
+    if "user_id" not in columns:
+        cur.execute("ALTER TABLE works ADD COLUMN user_id INTEGER")
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS fittings (
@@ -247,8 +249,8 @@ def works_list() -> str:
         ),
     }
 
-    conditions = []
-    params: list = []
+    conditions = ["user_id = %s"]
+    params: list = [session["user_id"]]
     if filters["room"]:
         placeholders = ",".join("%s" for _ in filters["room"])
         conditions.append(f"room IN ({placeholders})")
@@ -325,12 +327,13 @@ def works_list() -> str:
         fitting_rows = cur.fetchall()
         cur.close()
 
+    uid = session["user_id"]
     cur = db.cursor()
-    cur.execute("SELECT doctor FROM (SELECT DISTINCT doctor FROM works WHERE doctor != '') t ORDER BY lower(doctor)")
+    cur.execute("SELECT doctor FROM (SELECT DISTINCT doctor FROM works WHERE doctor != '' AND user_id = %s) t ORDER BY lower(doctor)", (uid,))
     doctors = [row["doctor"] for row in cur.fetchall()]
-    cur.execute("SELECT patient FROM (SELECT DISTINCT patient FROM works WHERE patient != '') t ORDER BY lower(patient)")
+    cur.execute("SELECT patient FROM (SELECT DISTINCT patient FROM works WHERE patient != '' AND user_id = %s) t ORDER BY lower(patient)", (uid,))
     patients = [row["patient"] for row in cur.fetchall()]
-    cur.execute("SELECT room FROM (SELECT DISTINCT room FROM works WHERE room != '') t ORDER BY lower(room)")
+    cur.execute("SELECT room FROM (SELECT DISTINCT room FROM works WHERE room != '' AND user_id = %s) t ORDER BY lower(room)", (uid,))
     rooms = [row["room"] for row in cur.fetchall()]
     cur.close()
 
@@ -468,9 +471,9 @@ def new_work() -> str:
             """
             INSERT INTO works (
                 room, doctor, patient, formula, upper_full_removable, lower_full_removable,
-                work_type, note, received_date, submission_date, created_at
+                work_type, note, received_date, submission_date, created_at, user_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 room,
@@ -484,6 +487,7 @@ def new_work() -> str:
                 received_date,
                 "",
                 datetime.utcnow().isoformat(),
+                session["user_id"],
             ),
         )
         cur.close()
@@ -508,7 +512,7 @@ def new_work() -> str:
 def send_to_fitting(work_id: int) -> str:
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id FROM works WHERE id = %s", (work_id,))
+    cur.execute("SELECT id FROM works WHERE id = %s AND user_id = %s", (work_id, session["user_id"]))
     work = cur.fetchone()
     if not work:
         cur.close()
@@ -557,11 +561,12 @@ def return_from_fitting(work_id: int, fitting_id: int) -> str:
     cur = db.cursor()
     cur.execute(
         """
-        SELECT id
-        FROM fittings
-        WHERE id = %s AND work_id = %s AND returned_date IS NULL
+        SELECT f.id
+        FROM fittings f
+        JOIN works w ON w.id = f.work_id
+        WHERE f.id = %s AND f.work_id = %s AND f.returned_date IS NULL AND w.user_id = %s
         """,
-        (fitting_id, work_id),
+        (fitting_id, work_id, session["user_id"]),
     )
     fitting = cur.fetchone()
     if not fitting:
@@ -598,9 +603,9 @@ def submit_work(work_id: int) -> str:
         """
         SELECT id, submission_date
         FROM works
-        WHERE id = %s
+        WHERE id = %s AND user_id = %s
         """,
-        (work_id,),
+        (work_id, session["user_id"]),
     )
     work = cur.fetchone()
     if not work:
