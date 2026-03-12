@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Нова робота{% endblock %}
+{% block title %}{{ page_title or 'Нова робота' }}{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="card-header">
-        <h2>Додати роботу</h2>
+        <h2>{{ page_title or 'Додати роботу' }}</h2>
     </div>
 
-    <form method="post" class="work-form">
+    <form method="post" {% if work_id %}action="{{ url_for('edit_work', work_id=work_id) }}"{% endif %} class="work-form">
         <div class="form-grid">
             <label class="form-field form-field--optional">
                 <span class="field-label">Кабінет</span>
@@ -33,6 +33,13 @@
                 <span class="field-label">Дата надходження <span class="req">*</span></span>
                 <input type="date" name="received_date" value="{{ form_data.get('received_date', '') }}" required>
             </label>
+
+            {% if work_id %}
+            <label class="form-field form-field--optional">
+                <span class="field-label">Дата здачі</span>
+                <input type="date" name="submission_date" value="{{ form_data.get('submission_date', '') }}">
+            </label>
+            {% endif %}
         </div>
 
         <fieldset>
@@ -141,8 +148,28 @@
             </div>
         </label>
 
+        {% if work_id %}
+        {% if fittings %}
+        <fieldset>
+            <legend>Примірки</legend>
+            {% for fitting in fittings %}
+            <div class="form-grid" style="margin-bottom:.5rem;">
+                <label class="form-field">
+                    <span class="field-label">Відправка {{ loop.index }}</span>
+                    <input type="date" name="fitting_{{ fitting.id }}_sent" value="{{ fitting.sent_date }}">
+                </label>
+                <label class="form-field form-field--optional">
+                    <span class="field-label">Повернення {{ loop.index }}</span>
+                    <input type="date" name="fitting_{{ fitting.id }}_returned" value="{{ fitting.returned_date or '' }}">
+                </label>
+            </div>
+            {% endfor %}
+        </fieldset>
+        {% endif %}
+        {% endif %}
+
         <div class="actions">
-            <button type="submit" class="btn" data-submitting>Зберегти</button>
+            <button type="submit" class="btn" data-submitting>{{ submit_label or 'Зберегти' }}</button>
             <a href="{{ url_for('works_list') }}" class="btn secondary">Скасувати</a>
         </div>
     </form>

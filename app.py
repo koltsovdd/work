@@ -507,6 +507,133 @@ def new_work() -> str:
     )
 
 
+@app.route("/works/<int:work_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_work(work_id: int) -> str:
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        """
+        SELECT id, room, doctor, patient, formula, upper_full_removable, lower_full_removable,
+               work_type, note, received_date, submission_date
+        FROM works WHERE id = %s AND user_id = %s
+        """,
+        (work_id, session["user_id"]),
+    )
+    work = cur.fetchone()
+    if not work:
+        cur.close()
+        flash("Роботу не знайдено.", "error")
+        return redirect(url_for("works_list"))
+    cur.execute(
+        "SELECT id, sent_date, returned_date FROM fittings WHERE work_id = %s ORDER BY id",
+        (work_id,),
+    )
+    fittings = cur.fetchall()
+    cur.close()
+
+    if request.method == "POST":
+        room = request.form.get("room", "").strip()
+        doctor = request.form.get("doctor", "").strip()
+        patient = request.form.get("patient", "").strip()
+        selected_teeth = request.form.getlist("formula")
+        upper_full_removable = bool(request.form.get("upper_full_removable"))
+        lower_full_removable = bool(request.form.get("lower_full_removable"))
+        work_type = request.form.get("work_type", "").strip()
+        note = serialize_tags(request.form.get("note", "").strip())
+        received_date = request.form.get("received_date", "").strip()
+
+        errors = []
+        if not doctor:
+            errors.append("Поле 'Лікар' обов'язкове.")
+        if not patient:
+            errors.append("Поле 'Пацієнт' обов'язкове.")
+        if not selected_teeth and not upper_full_removable and not lower_full_removable:
+            errors.append("Оберіть мінімум один зуб у формулі або відмітьте 'Повний знімний'.")
+        if not work_type:
+            errors.append("Поле 'Вид роботи' обов'язкове.")
+        received_date, date_error = parse_iso_date(received_date, "Дата надходження")
+        if date_error:
+            errors.append(date_error)
+        if [t for t in selected_teeth if t not in ALL_TEETH]:
+            errors.append("Формула містить некоректні значення.")
+
+        if upper_full_removable:
+            selected_teeth = [t for t in selected_teeth if t not in UPPER_TEETH]
+        if lower_full_removable:
+            selected_teeth = [t for t in selected_teeth if t not in LOWER_TEETH]
+
+        if errors:
+            for error in errors:
+                flash(error, "error")
+            return render_template(
+                "form.html",
+                formula_quadrants=FORMULA_QUADRANTS,
+                form_data=request.form,
+                selected_teeth=set(selected_teeth),
+                selected_flags={"upper_full_removable": upper_full_removable, "lower_full_removable": lower_full_removable},
+                work_id=work_id,
+                fittings=fittings,
+                page_title="Редагувати роботу",
+                submit_label="Зберегти зміни",
+            )
+
+        submission_date_raw = request.form.get("submission_date", "").strip()
+        submission_date = submission_date_raw if submission_date_raw else ""
+
+        formula_text = ",".join(
+            str(tooth) for quadrant in FORMULA_QUADRANTS for tooth in quadrant["teeth"] if str(tooth) in selected_teeth
+        )
+        cur = db.cursor()
+        cur.execute(
+            """
+            UPDATE works
+            SET room = %s, doctor = %s, patient = %s, formula = %s,
+                upper_full_removable = %s, lower_full_removable = %s,
+                work_type = %s, note = %s, received_date = %s, submission_date = %s
+            WHERE id = %s AND user_id = %s
+            """,
+            (room, doctor, patient, formula_text, int(upper_full_removable), int(lower_full_removable),
+             work_type, note, received_date, submission_date, work_id, session["user_id"]),
+        )
+        for fitting in fittings:
+            fid = fitting["id"]
+            sent = request.form.get(f"fitting_{fid}_sent", "").strip()
+            returned = request.form.get(f"fitting_{fid}_returned", "").strip() or None
+            if sent:
+                cur.execute(
+                    "UPDATE fittings SET sent_date = %s, returned_date = %s WHERE id = %s",
+                    (sent, returned, fid),
+                )
+        cur.close()
+        db.commit()
+        flash("Роботу успішно оновлено.", "success")
+        return redirect(url_for("works_list"))
+
+    return render_template(
+        "form.html",
+        formula_quadrants=FORMULA_QUADRANTS,
+        form_data={
+            "room": work["room"],
+            "doctor": work["doctor"],
+            "patient": work["patient"],
+            "work_type": work["work_type"],
+            "note": work["note"] or "",
+            "received_date": work["received_date"],
+            "submission_date": work["submission_date"],
+        },
+        selected_teeth=parse_formula(work["formula"]),
+        selected_flags={
+            "upper_full_removable": bool(work["upper_full_removable"]),
+            "lower_full_removable": bool(work["lower_full_removable"]),
+        },
+        work_id=work_id,
+        fittings=fittings,
+        page_title="Редагувати роботу",
+        submit_label="Зберегти зміни",
+    )
+
+
 @app.post("/works/<int:work_id>/fittings/send")
 @login_required
 def send_to_fitting(work_id: int) -> str:
