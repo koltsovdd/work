@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Регистрация{% endblock %}
+{% block title %}Реєстрація{% endblock %}
 
 {% block content %}
 <section class="card auth-card">
     <div class="card-header">
-        <h2>Регистрация</h2>
+        <h2>Реєстрація</h2>
     </div>
 
     <form method="post" class="work-form">
@@ -15,24 +15,24 @@
             </label>
 
             <label class="form-field">
-                <span class="field-label">Имя <span class="req">*</span></span>
-                <input type="text" name="name" value="{{ form_data.get('name', '') }}" required placeholder="Ваше имя">
+                <span class="field-label">Ім'я <span class="req">*</span></span>
+                <input type="text" name="name" value="{{ form_data.get('name', '') }}" required placeholder="Ваше ім'я">
             </label>
 
             <label class="form-field">
                 <span class="field-label">Пароль <span class="req">*</span></span>
-                <input type="password" name="password" required placeholder="Минимум 6 символов">
+                <input type="password" name="password" required placeholder="Мінімум 6 символів">
             </label>
 
             <label class="form-field">
-                <span class="field-label">Пароль ещё раз <span class="req">*</span></span>
-                <input type="password" name="password2" required placeholder="Повторите пароль">
+                <span class="field-label">Пароль ще раз <span class="req">*</span></span>
+                <input type="password" name="password2" required placeholder="Повторіть пароль">
             </label>
         </div>
 
         <div class="actions">
-            <button type="submit" class="btn" data-submitting>Зарегистрироваться</button>
-            <a href="{{ url_for('login') }}" class="btn secondary">Уже есть аккаунт</a>
+            <button type="submit" class="btn" data-submitting>Зареєструватись</button>
+            <a href="{{ url_for('login') }}" class="btn secondary">Вже є акаунт</a>
         </div>
     </form>
 </section>

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Вход{% endblock %}
+{% block title %}Вхід{% endblock %}
 
 {% block content %}
 <section class="card auth-card">
     <div class="card-header">
-        <h2>Вход</h2>
+        <h2>Вхід</h2>
     </div>
 
     <form method="post" class="work-form">
@@ -16,13 +16,13 @@
 
             <label class="form-field">
                 <span class="field-label">Пароль <span class="req">*</span></span>
-                <input type="password" name="password" required placeholder="Введите пароль">
+                <input type="password" name="password" required placeholder="Введіть пароль">
             </label>
         </div>
 
         <div class="actions">
-            <button type="submit" class="btn" data-submitting>Войти</button>
-            <a href="{{ url_for('register') }}" class="btn secondary">Регистрация</a>
+            <button type="submit" class="btn" data-submitting>Увійти</button>
+            <a href="{{ url_for('register') }}" class="btn secondary">Реєстрація</a>
         </div>
     </form>
 </section>

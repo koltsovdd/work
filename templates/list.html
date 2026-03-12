@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Все работы{% endblock %}
+{% block title %}Усі роботи{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="card-header">
         <div>
-            <h2>Все работы</h2>
-            <p class="subtle">Найдено: {{ works|length }} {{ 'запись' if works|length == 1 else ('записи' if works|length in [2,3,4] else 'записей') }}</p>
+            <h2>Усі роботи</h2>
+            <p class="subtle">Знайдено: {{ works|length }} {{ 'запис' if works|length == 1 else ('записи' if works|length in [2,3,4] else 'записів') }}</p>
         </div>
     </div>
 
     <details class="filters-panel">
-        <summary>Фильтры</summary>
+        <summary>Фільтри</summary>
         <form method="get" class="filters-form">
             <input type="hidden" name="filtered" value="1">
             <label class="filter-field">
-                <span>Кабинет</span>
-                <details class="multi-picker" data-placeholder="Все" data-searchable>
+                <span>Кабінет</span>
+                <details class="multi-picker" data-placeholder="Усі" data-searchable>
                     <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Все</span>
+                        <span class="multi-picker-label">Усі</span>
                     </summary>
                     <div class="multi-picker-options">
                         {% for room in rooms %}
@@ -32,10 +32,10 @@
             </label>
 
             <label class="filter-field">
-                <span>Врач</span>
-                <details class="multi-picker" data-placeholder="Все" data-searchable>
+                <span>Лікар</span>
+                <details class="multi-picker" data-placeholder="Усі" data-searchable>
                     <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Все</span>
+                        <span class="multi-picker-label">Усі</span>
                     </summary>
                     <div class="multi-picker-options">
                         {% for doctor in doctors %}
@@ -49,10 +49,10 @@
             </label>
 
             <label class="filter-field">
-                <span>Пациент</span>
-                <details class="multi-picker" data-placeholder="Все" data-searchable>
+                <span>Пацієнт</span>
+                <details class="multi-picker" data-placeholder="Усі" data-searchable>
                     <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Все</span>
+                        <span class="multi-picker-label">Усі</span>
                     </summary>
                     <div class="multi-picker-options">
                         {% for patient in patients %}
@@ -66,47 +66,47 @@
             </label>
 
             <label class="filter-field">
-                <span>Дата поступления</span>
+                <span>Дата надходження</span>
                 <div class="date-range">
-                    <input type="date" name="received_date_from" value="{{ filters.received_date_from }}" placeholder="От">
+                    <input type="date" name="received_date_from" value="{{ filters.received_date_from }}" placeholder="Від">
                     <input type="date" name="received_date_to" value="{{ filters.received_date_to }}" placeholder="До">
                 </div>
             </label>
 
             <label class="filter-field">
-                <span>Дата сдачи</span>
+                <span>Дата здачі</span>
                 <div class="date-range">
-                    <input type="date" name="submission_date_from" value="{{ filters.submission_date_from }}" placeholder="От">
+                    <input type="date" name="submission_date_from" value="{{ filters.submission_date_from }}" placeholder="Від">
                     <input type="date" name="submission_date_to" value="{{ filters.submission_date_to }}" placeholder="До">
                 </div>
             </label>
 
             <label class="filter-field">
                 <span>Статус</span>
-                <details class="multi-picker" data-placeholder="Все">
+                <details class="multi-picker" data-placeholder="Усі">
                     <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Все</span>
+                        <span class="multi-picker-label">Усі</span>
                     </summary>
                     <div class="multi-picker-options">
                         <label class="multi-picker-option">
                             <input type="checkbox" name="status" value="in_progress" {% if 'in_progress' in filters.status %}checked{% endif %}>
-                            <span>В работе</span>
+                            <span>В роботі</span>
                         </label>
                         <label class="multi-picker-option">
                             <input type="checkbox" name="status" value="fitting" {% if 'fitting' in filters.status %}checked{% endif %}>
-                            <span>На примерке</span>
+                            <span>На примірці</span>
                         </label>
                         <label class="multi-picker-option">
                             <input type="checkbox" name="status" value="done" {% if 'done' in filters.status %}checked{% endif %}>
-                            <span>Сдана</span>
+                            <span>Здана</span>
                         </label>
                     </div>
                 </details>
             </label>
 
             <div class="filters-actions">
-                <button type="submit" class="btn">Применить</button>
-                <a href="{{ url_for('works_list') }}" class="btn secondary">Сброс</a>
+                <button type="submit" class="btn">Застосувати</button>
+                <a href="{{ url_for('works_list') }}" class="btn secondary">Скинути</a>
             </div>
         </form>
     </details>
@@ -122,31 +122,31 @@
 
                     <div class="work-grid work-meta-grid">
                         <div class="meta-item">
-                            <span class="label">Кабинет</span>
+                            <span class="label">Кабінет</span>
                             <span class="value">{{ work.room or '—' }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Врач</span>
+                            <span class="label">Лікар</span>
                             <span class="value">{{ work.doctor }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Пациент</span>
+                            <span class="label">Пацієнт</span>
                             <span class="value">{{ work.patient }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Вид работы</span>
+                            <span class="label">Вид роботи</span>
                             <span class="value">{{ work.work_type }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Поступила</span>
+                            <span class="label">Надійшла</span>
                             <span class="value">{{ work.received_date or '—' }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Сдача</span>
+                            <span class="label">Здача</span>
                             <span class="value">{{ work.submission_date or '—' }}</span>
                         </div>
                         <div class="meta-item">
-                            <span class="label">Примечания</span>
+                            <span class="label">Примітки</span>
                             <span class="value">
                                 {% if work.note_tags %}
                                     <span class="tags">
@@ -232,13 +232,13 @@
                                     method="post"
                                     action="{{ url_for('submit_work', work_id=work.id) }}"
                                     class="fitting-action-form js-date-form"
-                                    data-action-title="Сдать работу"
+                                    data-action-title="Здати роботу"
                                     data-doctor="{{ work.doctor }}"
                                     data-patient="{{ work.patient }}"
                                     data-default-date="{{ today }}"
                                 >
                                     <input type="hidden" name="submission_date" value="{{ today }}" class="js-date-value">
-                                    <button type="submit" class="btn secondary" data-submitting>Сдать работу</button>
+                                    <button type="submit" class="btn secondary" data-submitting>Здати роботу</button>
                                 </form>
                             {% endif %}
 
@@ -247,45 +247,45 @@
                                     method="post"
                                     action="{{ url_for('return_from_fitting', work_id=work.id, fitting_id=work.open_fitting_id) }}"
                                     class="fitting-action-form js-date-form"
-                                    data-action-title="Вернулось с примерки"
+                                    data-action-title="Повернулось з примірки"
                                     data-doctor="{{ work.doctor }}"
                                     data-patient="{{ work.patient }}"
                                     data-default-date="{{ today }}"
                                 >
                                     <input type="hidden" name="returned_date" value="{{ today }}" class="js-date-value">
-                                    <button type="submit" class="btn warning" data-submitting>Вернулось с примерки</button>
+                                    <button type="submit" class="btn warning" data-submitting>Повернулось з примірки</button>
                                 </form>
                             {% elif not work.submission_date %}
                                 <form
                                     method="post"
                                     action="{{ url_for('send_to_fitting', work_id=work.id) }}"
                                     class="fitting-action-form js-date-form"
-                                    data-action-title="Отправить в примерку"
+                                    data-action-title="Відправити на примірку"
                                     data-doctor="{{ work.doctor }}"
                                     data-patient="{{ work.patient }}"
                                     data-default-date="{{ today }}"
                                 >
                                     <input type="hidden" name="sent_date" value="{{ today }}" class="js-date-value">
-                                    <button type="submit" class="btn" data-submitting>Отправить в примерку</button>
+                                    <button type="submit" class="btn" data-submitting>Відправити на примірку</button>
                                 </form>
                             {% endif %}
                         </div>
 
                         <div class="fittings-history">
-                            <span class="label">Примерки</span>
+                            <span class="label">Примірки</span>
                             {% if work.fittings %}
                                 <ul class="fittings-list">
                                     {% for fitting in work.fittings %}
                                         <li>
-                                            <span><strong>Отправка:</strong> {{ fitting.sent_date }}</span>
-                                            <span><strong>Возврат:</strong>
-                                                {% if fitting.returned_date %}{{ fitting.returned_date }}{% else %}<em>в работе</em>{% endif %}
+                                            <span><strong>Відправка:</strong> {{ fitting.sent_date }}</span>
+                                            <span><strong>Повернення:</strong>
+                                                {% if fitting.returned_date %}{{ fitting.returned_date }}{% else %}<em>в роботі</em>{% endif %}
                                             </span>
                                         </li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p class="fittings-empty">Примерок не было.</p>
+                                <p class="fittings-empty">Примірок не було.</p>
                             {% endif %}
                         </div>
                     </div>
@@ -295,7 +295,7 @@
     {% else %}
         <div class="empty-state">
             <div class="empty-state-icon">🦷</div>
-            <p class="empty-state-text">Записей не найдено.<br>Попробуйте изменить фильтры или <a href="{{ url_for('new_work') }}" style="color:var(--primary);">добавьте первую работу</a>.</p>
+            <p class="empty-state-text">Записів не знайдено.<br>Спробуйте змінити фільтри або <a href="{{ url_for('new_work') }}" style="color:var(--primary);">додайте першу роботу</a>.</p>
         </div>
     {% endif %}
 </section>
@@ -305,11 +305,11 @@
 <div id="date-modal" class="modal-backdrop">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="date-modal-title" data-modal-sheet>
         <div class="modal-handle"></div>
-        <h3 id="date-modal-title">Выберите дату</h3>
+        <h3 id="date-modal-title">Оберіть дату</h3>
         <input id="date-modal-input" type="date">
         <div class="modal-actions">
-            <button id="date-modal-confirm" type="button" class="btn">Подтвердить</button>
-            <button id="date-modal-cancel" type="button" class="btn secondary">Отмена</button>
+            <button id="date-modal-confirm" type="button" class="btn">Підтвердити</button>
+            <button id="date-modal-cancel" type="button" class="btn secondary">Скасувати</button>
         </div>
     </div>
 </div>
@@ -347,7 +347,7 @@
             activeForm = form;
             const doctor  = form.dataset.doctor  || "-";
             const patient = form.dataset.patient || "-";
-            modalTitle.textContent = (form.dataset.actionTitle || "Действие") + ": " + doctor + " / " + patient;
+            modalTitle.textContent = (form.dataset.actionTitle || "Дія") + ": " + doctor + " / " + patient;
             modalInput.value = form.dataset.defaultDate || getLocalToday();
             modal.classList.add("open");
             setTimeout(function () { modalInput.focus(); }, 320);
@@ -356,7 +356,7 @@
 
     modalConfirm.addEventListener("click", function () {
         if (!activeForm) { closeModal(); return; }
-        if (!modalInput.value) { alert("Выберите дату."); return; }
+        if (!modalInput.value) { alert("Оберіть дату."); return; }
         const input = activeForm.querySelector(".js-date-value");
         if (input) input.value = modalInput.value;
         const btn = activeForm.querySelector("[data-submitting]");
@@ -403,7 +403,7 @@
     if (!pickers.length) return;
 
     function updateLabel(picker) {
-        const placeholder = picker.dataset.placeholder || "Все";
+        const placeholder = picker.dataset.placeholder || "Усі";
         const label   = picker.querySelector(".multi-picker-label");
         const checked = picker.querySelectorAll("input[type='checkbox']:checked");
         if (!label) return;
@@ -444,7 +444,7 @@
             var searchInput = document.createElement("input");
             searchInput.type = "text";
             searchInput.className = "multi-picker-search";
-            searchInput.placeholder = "Поиск...";
+            searchInput.placeholder = "Пошук...";
             searchInput.autocomplete = "off";
             optionsDiv.insertBefore(searchInput, optionsDiv.firstChild);
 

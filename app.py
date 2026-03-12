@@ -13,10 +13,10 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Формула представлена как 4 четверти зубов человека.
 FORMULA_QUADRANTS = [
-    {"key": "q1", "title": "Верхняя правая (1 четверть)", "teeth": [18, 17, 16, 15, 14, 13, 12, 11]},
-    {"key": "q2", "title": "Верхняя левая (2 четверть)", "teeth": [21, 22, 23, 24, 25, 26, 27, 28]},
-    {"key": "q4", "title": "Нижняя правая (4 четверть)", "teeth": [48, 47, 46, 45, 44, 43, 42, 41]},
-    {"key": "q3", "title": "Нижняя левая (3 четверть)", "teeth": [31, 32, 33, 34, 35, 36, 37, 38]},
+    {"key": "q1", "title": "Верхня права (1 чверть)", "teeth": [18, 17, 16, 15, 14, 13, 12, 11]},
+    {"key": "q2", "title": "Верхня ліва (2 чверть)", "teeth": [21, 22, 23, 24, 25, 26, 27, 28]},
+    {"key": "q4", "title": "Нижня права (4 чверть)", "teeth": [48, 47, 46, 45, 44, 43, 42, 41]},
+    {"key": "q3", "title": "Нижня ліва (3 чверть)", "teeth": [31, 32, 33, 34, 35, 36, 37, 38]},
 ]
 ALL_TEETH = [str(tooth) for quadrant in FORMULA_QUADRANTS for tooth in quadrant["teeth"]]
 UPPER_TEETH = {str(tooth) for tooth in FORMULA_QUADRANTS[0]["teeth"] + FORMULA_QUADRANTS[1]["teeth"]}
@@ -127,22 +127,22 @@ def register():
 
         errors = []
         if not email:
-            errors.append("Email обязателен.")
+            errors.append("Email обов'язковий.")
         if not name:
-            errors.append("Имя обязательно.")
+            errors.append("Ім'я обов'язкове.")
         if not password:
-            errors.append("Пароль обязателен.")
+            errors.append("Пароль обов'язковий.")
         elif len(password) < 6:
-            errors.append("Пароль должен быть не короче 6 символов.")
+            errors.append("Пароль має бути не коротшим за 6 символів.")
         elif password != password2:
-            errors.append("Пароли не совпадают.")
+            errors.append("Паролі не збігаються.")
 
         if not errors:
             db = get_db()
             cur = db.cursor()
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             if cur.fetchone():
-                errors.append("Пользователь с таким email уже существует.")
+                errors.append("Користувач з таким email вже існує.")
             cur.close()
 
         if errors:
@@ -158,7 +158,7 @@ def register():
         )
         cur.close()
         db.commit()
-        flash("Регистрация прошла успешно. Войдите в систему.", "success")
+        flash("Реєстрація пройшла успішно. Увійдіть у систему.", "success")
         return redirect(url_for("login"))
 
     return render_template("register.html", form_data={})
@@ -179,7 +179,7 @@ def login():
         cur.close()
 
         if not user or not check_password_hash(user["password_hash"], password):
-            flash("Неверный email или пароль.", "error")
+            flash("Невірний email або пароль.", "error")
             return render_template("login.html", form_data=request.form)
 
         session.clear()
@@ -217,11 +217,11 @@ def serialize_tags(raw_text: str) -> str:
 def parse_iso_date(value: str, field_title: str) -> tuple[str | None, str | None]:
     date_value = (value or "").strip()
     if not date_value:
-        return None, f"Поле '{field_title}' обязательно."
+        return None, f"Поле '{field_title}' обов'язкове."
     try:
         datetime.strptime(date_value, "%Y-%m-%d")
     except ValueError:
-        return None, f"Поле '{field_title}' должно быть в формате ГГГГ-ММ-ДД."
+        return None, f"Поле '{field_title}' має бути у форматі РРРР-ММ-ДД."
     return date_value, None
 
 
@@ -357,13 +357,13 @@ def works_list() -> str:
         has_open_fitting = row["id"] in open_fitting_by_work
         if row["submission_date"]:
             status_key = "done"
-            status_label = "Сдана"
+            status_label = "Здана"
         elif has_open_fitting:
             status_key = "fitting"
-            status_label = "На примерке"
+            status_label = "На примірці"
         else:
             status_key = "in_progress"
-            status_label = "В работе"
+            status_label = "В роботі"
 
         works.append(
             {
@@ -419,20 +419,20 @@ def new_work() -> str:
 
         errors = []
         if not doctor:
-            errors.append("Поле 'Врач' обязательно.")
+            errors.append("Поле 'Лікар' обов'язкове.")
         if not patient:
-            errors.append("Поле 'Пациент' обязательно.")
+            errors.append("Поле 'Пацієнт' обов'язкове.")
         if not selected_teeth and not upper_full_removable and not lower_full_removable:
-            errors.append("Выберите минимум один зуб в формуле или отметьте 'Полный съемный'.")
+            errors.append("Оберіть мінімум один зуб у формулі або відмітьте 'Повний знімний'.")
         if not work_type:
-            errors.append("Поле 'Вид работы' обязательно.")
-        received_date, date_error = parse_iso_date(received_date, "Дата поступления")
+            errors.append("Поле 'Вид роботи' обов'язкове.")
+        received_date, date_error = parse_iso_date(received_date, "Дата надходження")
         if date_error:
             errors.append(date_error)
 
         invalid_teeth = [item for item in selected_teeth if item not in ALL_TEETH]
         if invalid_teeth:
-            errors.append("Формула содержит некорректные значения.")
+            errors.append("Формула містить некоректні значення.")
 
         if upper_full_removable:
             selected_teeth = [item for item in selected_teeth if item not in UPPER_TEETH]
@@ -488,7 +488,7 @@ def new_work() -> str:
         )
         cur.close()
         db.commit()
-        flash("Работа успешно добавлена.", "success")
+        flash("Роботу успішно додано.", "success")
         return redirect(url_for("works_list"))
 
     return render_template(
@@ -512,7 +512,7 @@ def send_to_fitting(work_id: int) -> str:
     work = cur.fetchone()
     if not work:
         cur.close()
-        flash("Работа не найдена.", "error")
+        flash("Роботу не знайдено.", "error")
         return redirect(url_for("works_list"))
 
     cur.execute(
@@ -528,10 +528,10 @@ def send_to_fitting(work_id: int) -> str:
     open_fitting = cur.fetchone()
     if open_fitting:
         cur.close()
-        flash("Эта работа уже находится в примерке.", "error")
+        flash("Ця робота вже знаходиться на примірці.", "error")
         return redirect(url_for("works_list"))
 
-    sent_date, date_error = parse_iso_date(request.form.get("sent_date", ""), "Дата отправки")
+    sent_date, date_error = parse_iso_date(request.form.get("sent_date", ""), "Дата відправки")
     if date_error:
         cur.close()
         flash(date_error, "error")
@@ -546,7 +546,7 @@ def send_to_fitting(work_id: int) -> str:
     )
     cur.close()
     db.commit()
-    flash("Работа отправлена в примерку.", "success")
+    flash("Роботу відправлено на примірку.", "success")
     return redirect(url_for("works_list"))
 
 
@@ -566,10 +566,10 @@ def return_from_fitting(work_id: int, fitting_id: int) -> str:
     fitting = cur.fetchone()
     if not fitting:
         cur.close()
-        flash("Открытая примерка не найдена.", "error")
+        flash("Відкриту примірку не знайдено.", "error")
         return redirect(url_for("works_list"))
 
-    returned_date, date_error = parse_iso_date(request.form.get("returned_date", ""), "Дата возврата")
+    returned_date, date_error = parse_iso_date(request.form.get("returned_date", ""), "Дата повернення")
     if date_error:
         cur.close()
         flash(date_error, "error")
@@ -585,7 +585,7 @@ def return_from_fitting(work_id: int, fitting_id: int) -> str:
     )
     cur.close()
     db.commit()
-    flash("Работа вернулась с примерки.", "success")
+    flash("Робота повернулась з примірки.", "success")
     return redirect(url_for("works_list"))
 
 
@@ -605,14 +605,14 @@ def submit_work(work_id: int) -> str:
     work = cur.fetchone()
     if not work:
         cur.close()
-        flash("Работа не найдена.", "error")
+        flash("Роботу не знайдено.", "error")
         return redirect(url_for("works_list"))
     if work["submission_date"]:
         cur.close()
-        flash("Работа уже сдана.", "error")
+        flash("Роботу вже здано.", "error")
         return redirect(url_for("works_list"))
 
-    submission_date, date_error = parse_iso_date(request.form.get("submission_date", ""), "Дата сдачи")
+    submission_date, date_error = parse_iso_date(request.form.get("submission_date", ""), "Дата здачі")
     if date_error:
         cur.close()
         flash(date_error, "error")
@@ -628,7 +628,7 @@ def submit_work(work_id: int) -> str:
     )
     cur.close()
     db.commit()
-    flash("Работа сдана.", "success")
+    flash("Роботу здано.", "success")
     return redirect(url_for("works_list"))
 
 

@@ -1,47 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Новая работа{% endblock %}
+{% block title %}Нова робота{% endblock %}
 
 {% block content %}
 <section class="card">
     <div class="card-header">
-        <h2>Добавить работу</h2>
+        <h2>Додати роботу</h2>
     </div>
 
     <form method="post" class="work-form">
         <div class="form-grid">
             <label class="form-field form-field--optional">
-                <span class="field-label">Кабинет</span>
-                <input type="text" name="room" value="{{ form_data.get('room', '') }}" placeholder="Номер кабинета">
+                <span class="field-label">Кабінет</span>
+                <input type="text" name="room" value="{{ form_data.get('room', '') }}" placeholder="Номер кабінету">
             </label>
 
             <label class="form-field">
-                <span class="field-label">Врач <span class="req">*</span></span>
-                <input type="text" name="doctor" value="{{ form_data.get('doctor', '') }}" required placeholder="Фамилия врача">
+                <span class="field-label">Лікар <span class="req">*</span></span>
+                <input type="text" name="doctor" value="{{ form_data.get('doctor', '') }}" required placeholder="Прізвище лікаря">
             </label>
 
             <label class="form-field">
-                <span class="field-label">Пациент <span class="req">*</span></span>
-                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" required placeholder="Фамилия пациента">
+                <span class="field-label">Пацієнт <span class="req">*</span></span>
+                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" required placeholder="Прізвище пацієнта">
             </label>
 
             <label class="form-field">
-                <span class="field-label">Вид работы <span class="req">*</span></span>
-                <input type="text" name="work_type" value="{{ form_data.get('work_type', '') }}" required placeholder="Например: коронка">
+                <span class="field-label">Вид роботи <span class="req">*</span></span>
+                <input type="text" name="work_type" value="{{ form_data.get('work_type', '') }}" required placeholder="Наприклад: коронка">
             </label>
 
             <label class="form-field">
-                <span class="field-label">Дата поступления <span class="req">*</span></span>
+                <span class="field-label">Дата надходження <span class="req">*</span></span>
                 <input type="date" name="received_date" value="{{ form_data.get('received_date', '') }}" required>
             </label>
         </div>
 
         <fieldset>
             <legend>Формула</legend>
-            <p class="hint">Выберите нужные зубы (при необходимости прокрутите по горизонтали):</p>
+            <p class="hint">Оберіть потрібні зуби (за потреби прокрутіть по горизонталі):</p>
 
             <div class="formula-input-halves">
 
-                <!-- ЗУБНАЯ СЕТКА (горизонтальная линия только здесь) -->
+                <!-- ЗУБНА СІТКА (горизонтальна лінія тільки тут) -->
                 <div class="formula-teeth-cross">
                     <div class="formula-jaw-teeth">
                         {% for quadrant in formula_quadrants[:2] %}
@@ -98,7 +98,7 @@
                     </div>
                 </div>
 
-                <!-- КОЛОНКА ПС (без горизонтальной линии) -->
+                <!-- КОЛОНКА ПС (без горизонтальної лінії) -->
                 <div class="formula-ps-col">
                     <label class="ps-inline--cell">
                         <input
@@ -125,25 +125,25 @@
         </fieldset>
 
         <label class="form-field">
-            <span class="field-label">Примечания (теги)</span>
+            <span class="field-label">Примітки (теги)</span>
             <input type="hidden" name="note" id="note-hidden" value="{{ form_data.get('note', '') }}">
             <div class="tag-editor" data-initial-tags="{{ form_data.get('note', '') }}">
                 <div class="tag-editor-input-row">
                     <input
                         type="text"
                         id="tag-input"
-                        placeholder="Введите тег и нажмите Enter или +"
+                        placeholder="Введіть тег і натисніть Enter або +"
                         autocomplete="off"
                     >
-                    <button type="button" id="tag-add-btn" class="btn plus-btn" aria-label="Добавить тег">+</button>
+                    <button type="button" id="tag-add-btn" class="btn plus-btn" aria-label="Додати тег">+</button>
                 </div>
                 <div id="tag-list" class="tags tag-list"></div>
             </div>
         </label>
 
         <div class="actions">
-            <button type="submit" class="btn" data-submitting>Сохранить</button>
-            <a href="{{ url_for('works_list') }}" class="btn secondary">Отмена</a>
+            <button type="submit" class="btn" data-submitting>Зберегти</button>
+            <a href="{{ url_for('works_list') }}" class="btn secondary">Скасувати</a>
         </div>
     </form>
 </section>
@@ -177,7 +177,7 @@
             btn.type = "button";
             btn.className = "tag tag-pill";
             btn.textContent = tag + " ×";
-            btn.title = "Удалить тег";
+            btn.title = "Видалити тег";
             btn.addEventListener("click", function () {
                 tags.splice(idx, 1);
                 syncHidden();
