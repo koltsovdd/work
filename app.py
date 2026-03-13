@@ -11,6 +11,16 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
+import pathlib as _pathlib
+_CSS_PATH = _pathlib.Path(__file__).parent / "static" / "styles.css"
+
+
+def _css_ver() -> str:
+    try:
+        return str(int(_CSS_PATH.stat().st_mtime))
+    except OSError:
+        return "1"
+
 # Формула представлена как 4 четверти зубов человека.
 FORMULA_QUADRANTS = [
     {"key": "q1", "title": "Верхня права (1 чверть)", "teeth": [18, 17, 16, 15, 14, 13, 12, 11]},
@@ -24,6 +34,11 @@ LOWER_TEETH = {str(tooth) for tooth in FORMULA_QUADRANTS[2]["teeth"] + FORMULA_Q
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dev-key-change-me"
+
+
+@app.context_processor
+def inject_css_ver():
+    return {"css_ver": _css_ver()}
 
 
 def get_db() -> psycopg2.extensions.connection:
