@@ -11,17 +11,17 @@
         <div class="form-grid">
             <label class="form-field form-field--optional">
                 <span class="field-label">Кабінет</span>
-                <input type="text" name="room" value="{{ form_data.get('room', '') }}" placeholder="Номер кабінету">
+                <input type="text" name="room" value="{{ form_data.get('room', '') }}" placeholder="Номер кабінету" data-ac="rooms" autocomplete="off">
             </label>
 
             <label class="form-field">
                 <span class="field-label">Лікар <span class="req">*</span></span>
-                <input type="text" name="doctor" value="{{ form_data.get('doctor', '') }}" required placeholder="Прізвище лікаря">
+                <input type="text" name="doctor" value="{{ form_data.get('doctor', '') }}" required placeholder="Прізвище лікаря" data-ac="doctors" autocomplete="off">
             </label>
 
             <label class="form-field">
                 <span class="field-label">Пацієнт <span class="req">*</span></span>
-                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" required placeholder="Прізвище пацієнта">
+                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" required placeholder="Прізвище пацієнта" data-ac="patients" autocomplete="off">
             </label>
 
             <label class="form-field">
@@ -177,6 +177,129 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+    /* ---------- Custom autocomplete ---------- */
+    var AC_DATA = {
+        rooms:   {{ ac_rooms | tojson }},
+        doctors: {{ ac_doctors | tojson }},
+        patients: {{ ac_patients | tojson }}
+    };
+
+    var style = document.createElement("style");
+    style.textContent = [
+        ".ac-dropdown{position:absolute;z-index:999;background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;box-sizing:border-box;}",
+        ".ac-item{padding:.5rem .75rem;cursor:pointer;white-space:nowrap;}",
+        ".ac-item:hover,.ac-item.ac-active{background:var(--primary-light,#e8f0fe);}"
+    ].join("");
+    document.head.appendChild(style);
+
+    function makeDropdown() {
+        var d = document.createElement("div");
+        d.className = "ac-dropdown";
+        d.style.display = "none";
+        document.body.appendChild(d);
+        return d;
+    }
+
+    document.querySelectorAll("[data-ac]").forEach(function (input) {
+        var key = input.dataset.ac;
+        var options = AC_DATA[key] || [];
+        if (!options.length) return;
+
+        var dropdown = makeDropdown();
+        var activeIdx = -1;
+
+        function positionDropdown() {
+            var rect = input.getBoundingClientRect();
+            var left = rect.left + window.scrollX;
+            var width = rect.width;
+            var maxWidth = window.innerWidth - rect.left - 8;
+            if (width > maxWidth) width = maxWidth;
+            dropdown.style.left  = left + "px";
+            dropdown.style.top   = (rect.bottom + window.scrollY) + "px";
+            dropdown.style.width = width + "px";
+        }
+
+        function showDropdown(items) {
+            dropdown.innerHTML = "";
+            activeIdx = -1;
+            if (!items.length) { dropdown.style.display = "none"; return; }
+            items.forEach(function (val, i) {
+                var item = document.createElement("div");
+                item.className = "ac-item";
+                item.textContent = val;
+                item.addEventListener("mousedown", function (e) {
+                    e.preventDefault();
+                    input.value = val;
+                    dropdown.style.display = "none";
+                });
+                dropdown.appendChild(item);
+            });
+            positionDropdown();
+            dropdown.style.display = "block";
+        }
+
+        function hideDropdown() {
+            dropdown.style.display = "none";
+            activeIdx = -1;
+        }
+
+        function filter(q) {
+            q = q.toLowerCase();
+            return options.filter(function (v) { return v.toLowerCase().includes(q); });
+        }
+
+        input.addEventListener("input", function () {
+            showDropdown(filter(input.value));
+        });
+
+        input.addEventListener("focus", function () {
+            if (input.value === "") showDropdown(options);
+            else showDropdown(filter(input.value));
+        });
+
+        input.addEventListener("blur", function () {
+            setTimeout(hideDropdown, 150);
+        });
+
+        input.addEventListener("keydown", function (e) {
+            var items = dropdown.querySelectorAll(".ac-item");
+            if (!items.length || dropdown.style.display === "none") return;
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                activeIdx = Math.min(activeIdx + 1, items.length - 1);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                activeIdx = Math.max(activeIdx - 1, 0);
+            } else if (e.key === "Enter" && activeIdx >= 0) {
+                e.preventDefault();
+                input.value = items[activeIdx].textContent;
+                hideDropdown();
+                return;
+            } else if (e.key === "Escape") {
+                hideDropdown(); return;
+            } else { return; }
+            items.forEach(function (it, i) {
+                it.classList.toggle("ac-active", i === activeIdx);
+            });
+            if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: "nearest" });
+        });
+    });
+
+    window.addEventListener("scroll", function () {
+        document.querySelectorAll(".ac-dropdown").forEach(function (d) {
+            if (d.style.display !== "none") {
+                var input = document.querySelector("[data-ac]");
+                if (input) {
+                    var rect = input.getBoundingClientRect();
+                    d.style.top = (rect.bottom + window.scrollY) + "px";
+                }
+            }
+        });
+    }, { passive: true });
+})();
+</script>
 <script>
 (function () {
     /* ---------- Tag editor ---------- */

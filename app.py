@@ -198,6 +198,20 @@ def logout():
     return redirect(url_for("login"))
 
 
+def get_autocomplete_data() -> dict:
+    uid = session["user_id"]
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT DISTINCT doctor FROM works WHERE doctor != '' AND user_id = %s ORDER BY doctor", (uid,))
+    doctors = [r["doctor"] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT patient FROM works WHERE patient != '' AND user_id = %s ORDER BY patient", (uid,))
+    patients = [r["patient"] for r in cur.fetchall()]
+    cur.execute("SELECT DISTINCT room FROM works WHERE room != '' AND user_id = %s ORDER BY room", (uid,))
+    rooms = [r["room"] for r in cur.fetchall()]
+    cur.close()
+    return {"ac_doctors": doctors, "ac_patients": patients, "ac_rooms": rooms}
+
+
 def parse_formula(formula_text: str) -> set[str]:
     return {item.strip() for item in formula_text.split(",") if item.strip()}
 
@@ -454,6 +468,7 @@ def new_work() -> str:
                     "upper_full_removable": upper_full_removable,
                     "lower_full_removable": lower_full_removable,
                 },
+                **get_autocomplete_data(),
             )
 
         formula_text = ",".join(
@@ -504,6 +519,7 @@ def new_work() -> str:
             "upper_full_removable": False,
             "lower_full_removable": False,
         },
+        **get_autocomplete_data(),
     )
 
 
@@ -576,6 +592,7 @@ def edit_work(work_id: int) -> str:
                 fittings=fittings,
                 page_title="Редагувати роботу",
                 submit_label="Зберегти зміни",
+                **get_autocomplete_data(),
             )
 
         submission_date_raw = request.form.get("submission_date", "").strip()
@@ -631,6 +648,7 @@ def edit_work(work_id: int) -> str:
         fittings=fittings,
         page_title="Редагувати роботу",
         submit_label="Зберегти зміни",
+        **get_autocomplete_data(),
     )
 
 
