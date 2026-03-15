@@ -150,22 +150,15 @@
                         </div>
                         <div class="meta-item">
                             <span class="label">Примітки</span>
-                            <span class="value">
-                                {% if work.note_tags %}
-                                    <span class="tags">
-                                        {% for tag in work.note_tags %}
-                                            <span class="tag">{{ tag }}</span>
-                                        {% endfor %}
-                                    </span>
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </span>
+                            <span class="value">{{ work.note or '—' }}</span>
                         </div>
                     </div>
 
                     <div class="formula-view">
                         <span class="label">Формула</span>
+                        {% if not work.has_upper_formula and not work.has_lower_formula %}
+                            <span class="value">відсутня</span>
+                        {% else %}
                         <div class="formula-scroll-wrapper">
                             <div
                                 class="formula-halves
@@ -226,6 +219,7 @@
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
                     </div>
 
                     <div class="fittings-section">

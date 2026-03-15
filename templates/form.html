@@ -19,9 +19,9 @@
                 <input type="text" name="doctor" value="{{ form_data.get('doctor', '') }}" required placeholder="Прізвище лікаря" data-ac="doctors" autocomplete="off">
             </label>
 
-            <label class="form-field">
-                <span class="field-label">Пацієнт <span class="req">*</span></span>
-                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" required placeholder="Прізвище пацієнта" data-ac="patients" autocomplete="off">
+            <label class="form-field form-field--optional">
+                <span class="field-label">Пацієнт</span>
+                <input type="text" name="patient" value="{{ form_data.get('patient', '') }}" placeholder="Прізвище пацієнта" data-ac="patients" autocomplete="off">
             </label>
 
             <label class="form-field">
@@ -131,21 +131,9 @@
             </div>
         </fieldset>
 
-        <label class="form-field">
-            <span class="field-label">Примітки (теги)</span>
-            <input type="hidden" name="note" id="note-hidden" value="{{ form_data.get('note', '') }}">
-            <div class="tag-editor" data-initial-tags="{{ form_data.get('note', '') }}">
-                <div class="tag-editor-input-row">
-                    <input
-                        type="text"
-                        id="tag-input"
-                        placeholder="Введіть тег і натисніть Enter або +"
-                        autocomplete="off"
-                    >
-                    <button type="button" id="tag-add-btn" class="btn plus-btn" aria-label="Додати тег">+</button>
-                </div>
-                <div id="tag-list" class="tags tag-list"></div>
-            </div>
+        <label class="form-field form-field--optional">
+            <span class="field-label">Примітки</span>
+            <input type="text" name="note" value="{{ form_data.get('note', '') }}" placeholder="Довільний текст">
         </label>
 
         {% if work_id %}
@@ -302,75 +290,6 @@
 </script>
 <script>
 (function () {
-    /* ---------- Tag editor ---------- */
-    const editor = document.querySelector(".tag-editor");
-    const input  = document.getElementById("tag-input");
-    const addBtn = document.getElementById("tag-add-btn");
-    const list   = document.getElementById("tag-list");
-    const hidden = document.getElementById("note-hidden");
-    if (!editor || !input || !addBtn || !list || !hidden) return;
-
-    const tags = [];
-
-    function normalizeTag(v) {
-        return (v || "").trim().replace(/^#+/, "");
-    }
-
-    function syncHidden() {
-        hidden.value = tags.join(",");
-    }
-
-    function render() {
-        list.innerHTML = "";
-        tags.forEach(function (tag, idx) {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "tag tag-pill";
-            btn.textContent = tag + " ×";
-            btn.title = "Видалити тег";
-            btn.addEventListener("click", function () {
-                tags.splice(idx, 1);
-                syncHidden();
-                render();
-            });
-            list.appendChild(btn);
-        });
-    }
-
-    function addTag(raw) {
-        const tag = normalizeTag(raw);
-        if (!tag || tags.includes(tag)) return;
-        tags.push(tag);
-        syncHidden();
-        render();
-    }
-
-    function parseInitial(raw) {
-        return (raw || "")
-            .replace(/;/g, ",")
-            .split(",")
-            .map(normalizeTag)
-            .filter(function (t, i, arr) { return t && arr.indexOf(t) === i; });
-    }
-
-    parseInitial(editor.dataset.initialTags).forEach(function (t) { tags.push(t); });
-    syncHidden();
-    render();
-
-    addBtn.addEventListener("click", function () {
-        addTag(input.value);
-        input.value = "";
-        input.focus();
-    });
-
-    input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            addTag(input.value);
-            input.value = "";
-        }
-    });
-
     /* ---------- Loading state on save button ---------- */
     const saveBtn = document.querySelector("[data-submitting]");
     const form    = saveBtn && saveBtn.closest("form");

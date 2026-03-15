@@ -231,19 +231,6 @@ def parse_formula(formula_text: str) -> set[str]:
     return {item.strip() for item in formula_text.split(",") if item.strip()}
 
 
-def parse_tags(raw_text: str) -> list[str]:
-    parts = raw_text.replace(";", ",").split(",")
-    tags: list[str] = []
-    for item in parts:
-        tag = item.strip().lstrip("#")
-        if tag and tag not in tags:
-            tags.append(tag)
-    return tags
-
-
-def serialize_tags(raw_text: str) -> str:
-    return ",".join(parse_tags(raw_text))
-
 
 def parse_iso_date(value: str, field_title: str) -> tuple[str | None, str | None]:
     date_value = (value or "").strip()
@@ -333,7 +320,7 @@ def works_list() -> str:
     """
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
-    sql += " ORDER BY id DESC"
+    sql += " ORDER BY received_date DESC, id DESC"
     cur = db.cursor()
     cur.execute(sql, params)
     rows = cur.fetchall()
@@ -409,7 +396,6 @@ def works_list() -> str:
                 "lower_full_removable": lower_full_removable,
                 "work_type": row["work_type"],
                 "note": row["note"] or "",
-                "note_tags": parse_tags(row["note"] or ""),
                 "received_date": row["received_date"],
                 "submission_date": row["submission_date"],
                 "created_at": row["created_at"],
@@ -445,17 +431,12 @@ def new_work() -> str:
         upper_full_removable = bool(request.form.get("upper_full_removable"))
         lower_full_removable = bool(request.form.get("lower_full_removable"))
         work_type = request.form.get("work_type", "").strip()
-        note_raw = request.form.get("note", "").strip()
-        note = serialize_tags(note_raw)
+        note = request.form.get("note", "").strip()
         received_date = request.form.get("received_date", "").strip()
 
         errors = []
         if not doctor:
             errors.append("Поле 'Лікар' обов'язкове.")
-        if not patient:
-            errors.append("Поле 'Пацієнт' обов'язкове.")
-        if not selected_teeth and not upper_full_removable and not lower_full_removable:
-            errors.append("Оберіть мінімум один зуб у формулі або відмітьте 'Повний знімний'.")
         if not work_type:
             errors.append("Поле 'Вид роботи' обов'язкове.")
         received_date, date_error = parse_iso_date(received_date, "Дата надходження")
@@ -571,16 +552,12 @@ def edit_work(work_id: int) -> str:
         upper_full_removable = bool(request.form.get("upper_full_removable"))
         lower_full_removable = bool(request.form.get("lower_full_removable"))
         work_type = request.form.get("work_type", "").strip()
-        note = serialize_tags(request.form.get("note", "").strip())
+        note = request.form.get("note", "").strip()
         received_date = request.form.get("received_date", "").strip()
 
         errors = []
         if not doctor:
             errors.append("Поле 'Лікар' обов'язкове.")
-        if not patient:
-            errors.append("Поле 'Пацієнт' обов'язкове.")
-        if not selected_teeth and not upper_full_removable and not lower_full_removable:
-            errors.append("Оберіть мінімум один зуб у формулі або відмітьте 'Повний знімний'.")
         if not work_type:
             errors.append("Поле 'Вид роботи' обов'язкове.")
         received_date, date_error = parse_iso_date(received_date, "Дата надходження")
