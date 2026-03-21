@@ -17,10 +17,10 @@
         <nav class="nav">
             {% if session.user_id %}
                 {% if request.endpoint != 'works_list' %}
-                    <a href="{{ url_for('works_list') }}">Усі роботи</a>
+                    <a href="{{ url_for('works_list') }}{% if session.last_filters %}?{{ session.last_filters }}{% endif %}">Усі роботи</a>
                 {% endif %}
                 {% if request.endpoint != 'new_work' %}
-                    <a href="{{ url_for('new_work') }}">+ Додати</a>
+                    <a href="{{ url_for('new_work') }}{% if session.last_filters %}?back={{ session.last_filters | urlencode }}{% endif %}">+ Додати</a>
                 {% endif %}
                 <div class="user-menu">
                     <button class="btn secondary user-menu-toggle" type="button" aria-expanded="false">

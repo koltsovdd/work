@@ -42,6 +42,24 @@
             {% endif %}
         </div>
 
+        <label class="form-field form-field--optional">
+            <span class="field-label">Примітки</span>
+            <input type="text" name="note" value="{{ form_data.get('note', '') }}" placeholder="Довільний текст">
+        </label>
+
+        {% if work_id %}
+        <div class="form-grid">
+            <label class="form-field form-field--optional">
+                <span class="field-label">Дата оплати</span>
+                <input type="date" name="paid_date" value="{{ form_data.get('paid_date', '') }}">
+            </label>
+            <label class="form-field form-field--optional">
+                <span class="field-label">Коментар до оплати</span>
+                <input type="text" name="paid_note" value="{{ form_data.get('paid_note', '') }}" placeholder="Необов'язково">
+            </label>
+        </div>
+        {% endif %}
+
         <fieldset>
             <legend>Формула</legend>
             <p class="hint">Оберіть потрібні зуби (за потреби прокрутіть по горизонталі):</p>
@@ -131,40 +149,71 @@
             </div>
         </fieldset>
 
-        <label class="form-field form-field--optional">
-            <span class="field-label">Примітки</span>
-            <input type="text" name="note" value="{{ form_data.get('note', '') }}" placeholder="Довільний текст">
-        </label>
-
         {% if work_id %}
         {% if fittings %}
         <fieldset>
             <legend>Примірки</legend>
             {% for fitting in fittings %}
-            <div class="form-grid" style="margin-bottom:.5rem;">
-                <label class="form-field">
-                    <span class="field-label">Відправка {{ loop.index }}</span>
-                    <input type="date" name="fitting_{{ fitting.id }}_sent" value="{{ fitting.sent_date }}">
-                </label>
-                <label class="form-field form-field--optional">
-                    <span class="field-label">Повернення {{ loop.index }}</span>
-                    <input type="date" name="fitting_{{ fitting.id }}_returned" value="{{ fitting.returned_date or '' }}">
-                </label>
+            <div style="border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:.75rem;">
+                <div style="display:flex;align-items:flex-end;gap:.5rem;">
+                    <label class="form-field" style="flex:1;margin-bottom:0;">
+                        <span class="field-label">Відправка {{ loop.index }}</span>
+                        <input type="date" name="fitting_{{ fitting.id }}_sent" value="{{ fitting.sent_date }}">
+                    </label>
+                    <label class="form-field form-field--optional" style="flex:1;margin-bottom:0;">
+                        <span class="field-label">Повернення {{ loop.index }}</span>
+                        <input type="date" name="fitting_{{ fitting.id }}_returned" value="{{ fitting.returned_date or '' }}">
+                    </label>
+                    <label class="form-field form-field--optional" style="flex:2;margin-bottom:0;">
+                        <span class="field-label">Коментар</span>
+                        <input type="text" name="fitting_{{ fitting.id }}_note" value="{{ fitting.note or '' }}" placeholder="Необов'язково">
+                    </label>
+                    <div style="display:flex;align-items:center;justify-content:center;height:var(--touch);flex-shrink:0;align-self:flex-end;">
+                        <label style="display:flex;align-items:center;justify-content:center;cursor:pointer;padding:.45rem;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);transition:color .15s,border-color .15s;" title="Видалити примірку" onmouseover="this.style.color='#dc2626';this.style.borderColor='#dc2626'" onmouseout="this.style.color='';this.style.borderColor=''">
+                            <input type="checkbox" name="fitting_{{ fitting.id }}_delete" value="1" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        </label>
+                    </div>
+
+                </div>
             </div>
             {% endfor %}
         </fieldset>
         {% endif %}
         {% endif %}
 
+        <input type="hidden" name="back" value="{{ back or '' }}">
         <div class="actions">
             <button type="submit" class="btn" data-submitting>{{ submit_label or 'Зберегти' }}</button>
-            <a href="{{ url_for('works_list') }}" class="btn secondary">Скасувати</a>
+            <a href="{{ url_for('works_list') }}{% if back %}?{{ back }}{% endif %}" class="btn secondary">Скасувати</a>
         </div>
     </form>
 </section>
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+    /* ---------- Fitting delete toggle ---------- */
+    document.querySelectorAll("[title='Видалити примірку']").forEach(function (label) {
+        var cb = label.querySelector("input[type=checkbox]");
+        var row = label.closest("div[style*='border']");
+        label.addEventListener("click", function (e) {
+            e.preventDefault();
+            cb.checked = !cb.checked;
+            if (cb.checked) {
+                row.style.opacity = ".4";
+                label.style.color = "#dc2626";
+                label.style.borderColor = "#dc2626";
+            } else {
+                row.style.opacity = "";
+                label.style.color = "";
+                label.style.borderColor = "";
+            }
+        });
+    });
+})();
+</script>
 <script>
 (function () {
     /* ---------- Custom autocomplete ---------- */

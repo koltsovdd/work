@@ -8,6 +8,15 @@
             <h2>Усі роботи</h2>
             <p class="subtle">Знайдено: {{ works|length }} {{ 'запис' if works|length == 1 else ('записи' if works|length in [2,3,4] else 'записів') }}</p>
         </div>
+        <div class="status-tabs">
+            <button type="button" class="status-tab {% if 'in_progress' in filters.status %}active{% endif %}" data-status="in_progress">В роботі</button>
+            <button type="button" class="status-tab {% if 'fitting' in filters.status %}active{% endif %}" data-status="fitting">На примірці</button>
+            <button type="button" class="status-tab {% if 'done' in filters.status %}active{% endif %}" data-status="done">Здана</button>
+            <button type="button" class="status-tab {% if 'paid' in filters.status %}active{% endif %}" data-status="paid">Оплачена</button>
+            <button type="button" id="status-clear" title="Скинути статуси" style="display:flex;align-items:center;justify-content:center;padding:.45rem;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:color .15s,border-color .15s;" onmouseover="this.style.color='#dc2626';this.style.borderColor='#dc2626'" onmouseout="this.style.color='';this.style.borderColor=''">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
     </div>
 
     <details class="filters-panel">
@@ -81,30 +90,7 @@
                 </div>
             </label>
 
-            <label class="filter-field">
-                <span>Статус</span>
-                <details class="multi-picker" data-placeholder="Усі">
-                    <summary class="multi-picker-summary">
-                        <span class="multi-picker-label">Усі</span>
-                    </summary>
-                    <div class="multi-picker-options">
-                        <label class="multi-picker-option">
-                            <input type="checkbox" name="status" value="in_progress" {% if 'in_progress' in filters.status %}checked{% endif %}>
-                            <span>В роботі</span>
-                        </label>
-                        <label class="multi-picker-option">
-                            <input type="checkbox" name="status" value="fitting" {% if 'fitting' in filters.status %}checked{% endif %}>
-                            <span>На примірці</span>
-                        </label>
-                        <label class="multi-picker-option">
-                            <input type="checkbox" name="status" value="done" {% if 'done' in filters.status %}checked{% endif %}>
-                            <span>Здана</span>
-                        </label>
-                    </div>
-                </details>
-            </label>
-
-            <div class="filters-actions">
+<div class="filters-actions">
                 <button type="submit" class="btn">Застосувати</button>
                 <a href="{{ url_for('works_list') }}" class="btn secondary">Скинути</a>
             </div>
@@ -119,7 +105,7 @@
                         <h3 class="work-title">{{ work.doctor }} · {{ work.work_type }}</h3>
                         <div style="display:flex;align-items:center;gap:.5rem;">
                             <span class="status-badge status-{{ work.status_key }}">{{ work.status_label }}</span>
-                            <a href="{{ url_for('edit_work', work_id=work.id) }}" class="btn secondary" style="font-size:.8rem;padding:.25rem .6rem;">✎ Редагувати</a>
+                            <a href="{{ url_for('edit_work', work_id=work.id) }}?back={{ request.query_string.decode() | urlencode }}" class="btn secondary" style="font-size:.8rem;padding:.25rem .6rem;">✎ Редагувати</a>
                         </div>
                     </div>
 
@@ -152,6 +138,12 @@
                             <span class="label">Примітки</span>
                             <span class="value">{{ work.note or '—' }}</span>
                         </div>
+                        {% if work.paid_date %}
+                        <div class="meta-item">
+                            <span class="label">Оплата</span>
+                            <span class="value">{{ work.paid_date }}{% if work.paid_note %} · {{ work.paid_note }}{% endif %}</span>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="formula-view">
@@ -231,11 +223,28 @@
                                     class="fitting-action-form js-date-form"
                                     data-action-title="Здати роботу"
                                     data-doctor="{{ work.doctor }}"
-                                    data-patient="{{ work.patient }}"
+                                    data-patient="{{ work.work_type }}"
                                     data-default-date="{{ today }}"
                                 >
                                     <input type="hidden" name="submission_date" value="{{ today }}" class="js-date-value">
+                                    <input type="hidden" name="back" value="{{ request.query_string.decode() }}">
                                     <button type="submit" class="btn secondary" data-submitting>Здати роботу</button>
+                                </form>
+                            {% elif not work.paid_date %}
+                                <form
+                                    method="post"
+                                    action="{{ url_for('pay_work', work_id=work.id) }}"
+                                    class="fitting-action-form js-date-form"
+                                    data-action-title="Роботу сплачено"
+                                    data-doctor="{{ work.doctor }}"
+                                    data-patient="{{ work.work_type }}"
+                                    data-default-date="{{ today }}"
+                                    data-has-note="1"
+                                >
+                                    <input type="hidden" name="paid_date" value="{{ today }}" class="js-date-value">
+                                    <input type="hidden" name="note" value="" class="js-note-value">
+                                    <input type="hidden" name="back" value="{{ request.query_string.decode() }}">
+                                    <button type="submit" class="btn success" data-submitting>Роботу сплачено</button>
                                 </form>
                             {% endif %}
 
@@ -246,10 +255,11 @@
                                     class="fitting-action-form js-date-form"
                                     data-action-title="Повернулось з примірки"
                                     data-doctor="{{ work.doctor }}"
-                                    data-patient="{{ work.patient }}"
+                                    data-patient="{{ work.work_type }}"
                                     data-default-date="{{ today }}"
                                 >
                                     <input type="hidden" name="returned_date" value="{{ today }}" class="js-date-value">
+                                    <input type="hidden" name="back" value="{{ request.query_string.decode() }}">
                                     <button type="submit" class="btn warning" data-submitting>Повернулось з примірки</button>
                                 </form>
                             {% elif not work.submission_date %}
@@ -259,10 +269,13 @@
                                     class="fitting-action-form js-date-form"
                                     data-action-title="Відправити на примірку"
                                     data-doctor="{{ work.doctor }}"
-                                    data-patient="{{ work.patient }}"
+                                    data-patient="{{ work.work_type }}"
                                     data-default-date="{{ today }}"
+                                    data-has-note="1"
                                 >
                                     <input type="hidden" name="sent_date" value="{{ today }}" class="js-date-value">
+                                    <input type="hidden" name="note" value="" class="js-note-value">
+                                    <input type="hidden" name="back" value="{{ request.query_string.decode() }}">
                                     <button type="submit" class="btn" data-submitting>Відправити на примірку</button>
                                 </form>
                             {% endif %}
@@ -276,8 +289,9 @@
                                         <li>
                                             <span><strong>Відправка:</strong> {{ fitting.sent_date }}</span>
                                             <span><strong>Повернення:</strong>
-                                                {% if fitting.returned_date %}{{ fitting.returned_date }}{% else %}<em>в роботі</em>{% endif %}
+                                                {% if fitting.returned_date %}{{ fitting.returned_date }}{% else %}—{% endif %}
                                             </span>
+                                            {% if fitting.note %}<span class="fitting-note"><strong>Коментар:</strong> {{ fitting.note }}</span>{% endif %}
                                         </li>
                                     {% endfor %}
                                 </ul>
@@ -304,6 +318,10 @@
         <div class="modal-handle"></div>
         <h3 id="date-modal-title">Оберіть дату</h3>
         <input id="date-modal-input" type="date">
+        <div id="date-modal-note-wrap" style="display:none">
+            <label for="date-modal-note" style="font-size:.85rem;color:var(--text-secondary)">Примітка</label>
+            <textarea id="date-modal-note" rows="2" style="width:100%;margin-top:.25rem;resize:vertical;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem;font:inherit;background:var(--surface);color:var(--text)"></textarea>
+        </div>
         <div class="modal-actions">
             <button id="date-modal-confirm" type="button" class="btn">Підтвердити</button>
             <button id="date-modal-cancel" type="button" class="btn secondary">Скасувати</button>
@@ -313,11 +331,49 @@
 
 <script>
 (function () {
+    /* ---------- Status tabs ---------- */
+    var clearBtn = document.getElementById("status-clear");
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            var params = new URLSearchParams(window.location.search);
+            params.set("filtered", "1");
+            params.delete("status");
+            window.location.search = params.toString();
+        });
+    }
+
+    var activeStatuses = {{ filters.status | tojson }};
+
+    document.querySelectorAll(".status-tab").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var status = btn.dataset.status;
+            var params = new URLSearchParams(window.location.search);
+            params.set("filtered", "1");
+            var current = params.getAll("status");
+            if (current.length === 0) { current = activeStatuses.slice(); }
+            var idx = current.indexOf(status);
+            params.delete("status");
+            if (idx === -1) {
+                current.push(status);
+            } else {
+                current.splice(idx, 1);
+            }
+            current.forEach(function (s) { params.append("status", s); });
+            window.location.search = params.toString();
+        });
+    });
+})();
+</script>
+
+<script>
+(function () {
     /* ---------- Date modal ---------- */
     const forms        = document.querySelectorAll(".js-date-form");
     const modal        = document.getElementById("date-modal");
     const modalTitle   = document.getElementById("date-modal-title");
     const modalInput   = document.getElementById("date-modal-input");
+    const modalNoteWrap= document.getElementById("date-modal-note-wrap");
+    const modalNote    = document.getElementById("date-modal-note");
     const modalConfirm = document.getElementById("date-modal-confirm");
     const modalCancel  = document.getElementById("date-modal-cancel");
     if (!forms.length || !modal) return;
@@ -346,6 +402,9 @@
             const patient = form.dataset.patient || "-";
             modalTitle.textContent = (form.dataset.actionTitle || "Дія") + ": " + doctor + " / " + patient;
             modalInput.value = form.dataset.defaultDate || getLocalToday();
+            const hasNote = form.dataset.hasNote === "1";
+            modalNoteWrap.style.display = hasNote ? "" : "none";
+            if (hasNote) modalNote.value = "";
             modal.classList.add("open");
             setTimeout(function () { modalInput.focus(); }, 320);
         });
@@ -356,6 +415,10 @@
         if (!modalInput.value) { alert("Оберіть дату."); return; }
         const input = activeForm.querySelector(".js-date-value");
         if (input) input.value = modalInput.value;
+        if (activeForm.dataset.hasNote === "1") {
+            const noteInput = activeForm.querySelector(".js-note-value");
+            if (noteInput) noteInput.value = modalNote.value;
+        }
         const btn = activeForm.querySelector("[data-submitting]");
         if (btn) btn.setAttribute("aria-busy", "true");
         const f = activeForm;

@@ -90,6 +90,10 @@ def init_db() -> None:
         cur.execute("ALTER TABLE works ADD COLUMN lower_full_removable INTEGER NOT NULL DEFAULT 0")
     if "user_id" not in columns:
         cur.execute("ALTER TABLE works ADD COLUMN user_id INTEGER")
+    if "paid_date" not in columns:
+        cur.execute("ALTER TABLE works ADD COLUMN paid_date TEXT NOT NULL DEFAULT ''")
+    if "paid_note" not in columns:
+        cur.execute("ALTER TABLE works ADD COLUMN paid_note TEXT NOT NULL DEFAULT ''")
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS fittings (
@@ -103,6 +107,15 @@ def init_db() -> None:
         )
         """
     )
+    cur.execute(
+        """
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'fittings'
+        """
+    )
+    fitting_columns = {row["column_name"] for row in cur.fetchall()}
+    if "note" not in fitting_columns:
+        cur.execute("ALTER TABLE fittings ADD COLUMN note TEXT NOT NULL DEFAULT ''")
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
@@ -121,6 +134,13 @@ def init_db() -> None:
 @app.before_request
 def ensure_db() -> None:
     init_db()
+
+
+def redirect_back() -> str:
+    back = (request.form.get("back", "") or session.get("last_filters", "")).strip()
+    if back:
+        return redirect(url_for("works_list") + "?" + back)
+    return redirect(url_for("works_list"))
 
 
 def login_required(view):
@@ -246,6 +266,7 @@ def parse_iso_date(value: str, field_title: str) -> tuple[str | None, str | None
 @app.route("/")
 @login_required
 def works_list() -> str:
+    session["last_filters"] = request.query_string.decode()
     db = get_db()
     selected_rooms = [item.strip() for item in request.args.getlist("room") if item.strip()]
     selected_doctors = [item.strip() for item in request.args.getlist("doctor") if item.strip()]
@@ -259,7 +280,7 @@ def works_list() -> str:
         "submission_date_from": request.args.get("submission_date_from", "").strip(),
         "submission_date_to": request.args.get("submission_date_to", "").strip(),
         "status": (
-            [s for s in request.args.getlist("status") if s in {"in_progress", "fitting", "done"}]
+            [s for s in request.args.getlist("status") if s in {"in_progress", "fitting", "done", "paid"}]
             if "filtered" in request.args
             else ["in_progress", "fitting"]
         ),
@@ -295,8 +316,10 @@ def works_list() -> str:
         params.append(filters["submission_date_to"])
     if filters["status"]:
         status_parts = []
+        if "paid" in filters["status"]:
+            status_parts.append("paid_date != ''")
         if "done" in filters["status"]:
-            status_parts.append("submission_date != ''")
+            status_parts.append("(submission_date != '' AND paid_date = '')")
         if "fitting" in filters["status"]:
             status_parts.append(
                 "(submission_date = '' AND EXISTS ("
@@ -315,7 +338,7 @@ def works_list() -> str:
     sql = """
         SELECT
             id, room, doctor, patient, formula, upper_full_removable, lower_full_removable,
-            work_type, note, received_date, submission_date, created_at
+            work_type, note, received_date, submission_date, created_at, paid_date, paid_note
         FROM works
     """
     if conditions:
@@ -333,10 +356,10 @@ def works_list() -> str:
         cur = db.cursor()
         cur.execute(
             f"""
-            SELECT id, work_id, sent_date, returned_date
+            SELECT id, work_id, sent_date, returned_date, note
             FROM fittings
             WHERE work_id IN ({placeholders})
-            ORDER BY id DESC
+            ORDER BY id
             """,
             work_ids,
         )
@@ -361,6 +384,7 @@ def works_list() -> str:
             "id": fitting["id"],
             "sent_date": fitting["sent_date"],
             "returned_date": fitting["returned_date"],
+            "note": fitting["note"],
         }
         fittings_by_work.setdefault(work_id, []).append(item)
         if fitting["returned_date"] is None and work_id not in open_fitting_by_work:
@@ -374,7 +398,10 @@ def works_list() -> str:
         has_upper_formula = bool(selected.intersection(UPPER_TEETH)) or upper_full_removable
         has_lower_formula = bool(selected.intersection(LOWER_TEETH)) or lower_full_removable
         has_open_fitting = row["id"] in open_fitting_by_work
-        if row["submission_date"]:
+        if row["paid_date"]:
+            status_key = "paid"
+            status_label = "Сплачено"
+        elif row["submission_date"]:
             status_key = "done"
             status_label = "Здана"
         elif has_open_fitting:
@@ -399,6 +426,8 @@ def works_list() -> str:
                 "received_date": row["received_date"],
                 "submission_date": row["submission_date"],
                 "created_at": row["created_at"],
+                "paid_date": row["paid_date"],
+                "paid_note": row["paid_note"],
                 "fittings": fittings_by_work.get(row["id"], []),
                 "open_fitting_id": open_fitting_by_work.get(row["id"]),
                 "status_key": status_key,
@@ -504,8 +533,9 @@ def new_work() -> str:
         cur.close()
         db.commit()
         flash("Роботу успішно додано.", "success")
-        return redirect(url_for("works_list"))
+        return redirect_back()
 
+    back = request.args.get("back", "")
     return render_template(
         "form.html",
         formula_quadrants=FORMULA_QUADRANTS,
@@ -515,6 +545,7 @@ def new_work() -> str:
             "upper_full_removable": False,
             "lower_full_removable": False,
         },
+        back=back,
         **get_autocomplete_data(),
     )
 
@@ -527,7 +558,7 @@ def edit_work(work_id: int) -> str:
     cur.execute(
         """
         SELECT id, room, doctor, patient, formula, upper_full_removable, lower_full_removable,
-               work_type, note, received_date, submission_date
+               work_type, note, received_date, submission_date, paid_date, paid_note
         FROM works WHERE id = %s AND user_id = %s
         """,
         (work_id, session["user_id"]),
@@ -538,11 +569,14 @@ def edit_work(work_id: int) -> str:
         flash("Роботу не знайдено.", "error")
         return redirect(url_for("works_list"))
     cur.execute(
-        "SELECT id, sent_date, returned_date FROM fittings WHERE work_id = %s ORDER BY id",
+        "SELECT id, sent_date, returned_date, note FROM fittings WHERE work_id = %s ORDER BY id",
         (work_id,),
     )
     fittings = cur.fetchall()
     cur.close()
+
+    from urllib.parse import unquote
+    back = unquote(request.args.get("back", "") or request.form.get("back", ""))
 
     if request.method == "POST":
         room = request.form.get("room", "").strip()
@@ -599,24 +633,34 @@ def edit_work(work_id: int) -> str:
             UPDATE works
             SET room = %s, doctor = %s, patient = %s, formula = %s,
                 upper_full_removable = %s, lower_full_removable = %s,
-                work_type = %s, note = %s, received_date = %s, submission_date = %s
+                work_type = %s, note = %s, received_date = %s, submission_date = %s,
+                paid_date = %s, paid_note = %s
             WHERE id = %s AND user_id = %s
             """,
             (room, doctor, patient, formula_text, int(upper_full_removable), int(lower_full_removable),
-             work_type, note, received_date, submission_date, work_id, session["user_id"]),
+             work_type, note, received_date, submission_date,
+             request.form.get("paid_date", "").strip(),
+             request.form.get("paid_note", "").strip(),
+             work_id, session["user_id"]),
         )
         for fitting in fittings:
             fid = fitting["id"]
+            if request.form.get(f"fitting_{fid}_delete"):
+                cur.execute("DELETE FROM fittings WHERE id = %s AND work_id = %s", (fid, work_id))
+                continue
             sent = request.form.get(f"fitting_{fid}_sent", "").strip()
             returned = request.form.get(f"fitting_{fid}_returned", "").strip() or None
+            fitting_note = request.form.get(f"fitting_{fid}_note", "").strip()
             if sent:
                 cur.execute(
-                    "UPDATE fittings SET sent_date = %s, returned_date = %s WHERE id = %s",
-                    (sent, returned, fid),
+                    "UPDATE fittings SET sent_date = %s, returned_date = %s, note = %s WHERE id = %s",
+                    (sent, returned, fitting_note, fid),
                 )
         cur.close()
         db.commit()
         flash("Роботу успішно оновлено.", "success")
+        if back:
+            return redirect(url_for("works_list") + "?" + back)
         return redirect(url_for("works_list"))
 
     return render_template(
@@ -630,6 +674,8 @@ def edit_work(work_id: int) -> str:
             "note": work["note"] or "",
             "received_date": work["received_date"],
             "submission_date": work["submission_date"],
+            "paid_date": work["paid_date"] or "",
+            "paid_note": work["paid_note"] or "",
         },
         selected_teeth=parse_formula(work["formula"]),
         selected_flags={
@@ -638,6 +684,7 @@ def edit_work(work_id: int) -> str:
         },
         work_id=work_id,
         fittings=fittings,
+        back=back,
         page_title="Редагувати роботу",
         submit_label="Зберегти зміни",
         **get_autocomplete_data(),
@@ -678,17 +725,19 @@ def send_to_fitting(work_id: int) -> str:
         flash(date_error, "error")
         return redirect(url_for("works_list"))
 
+    note = request.form.get("note", "").strip()
+
     cur.execute(
         """
-        INSERT INTO fittings (work_id, sent_date, returned_date, created_at, returned_at)
-        VALUES (%s, %s, NULL, %s, NULL)
+        INSERT INTO fittings (work_id, sent_date, returned_date, created_at, returned_at, note)
+        VALUES (%s, %s, NULL, %s, NULL, %s)
         """,
-        (work_id, sent_date, datetime.utcnow().isoformat()),
+        (work_id, sent_date, datetime.utcnow().isoformat(), note),
     )
     cur.close()
     db.commit()
     flash("Роботу відправлено на примірку.", "success")
-    return redirect(url_for("works_list"))
+    return redirect_back()
 
 
 @app.post("/works/<int:work_id>/fittings/<int:fitting_id>/return")
@@ -728,7 +777,48 @@ def return_from_fitting(work_id: int, fitting_id: int) -> str:
     cur.close()
     db.commit()
     flash("Робота повернулась з примірки.", "success")
-    return redirect(url_for("works_list"))
+    return redirect_back()
+
+
+@app.post("/works/<int:work_id>/pay")
+@login_required
+def pay_work(work_id: int) -> str:
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        "SELECT id, submission_date, paid_date FROM works WHERE id = %s AND user_id = %s",
+        (work_id, session["user_id"]),
+    )
+    work = cur.fetchone()
+    if not work:
+        cur.close()
+        flash("Роботу не знайдено.", "error")
+        return redirect(url_for("works_list"))
+    if not work["submission_date"]:
+        cur.close()
+        flash("Роботу ще не здано.", "error")
+        return redirect(url_for("works_list"))
+    if work["paid_date"]:
+        cur.close()
+        flash("Роботу вже сплачено.", "error")
+        return redirect(url_for("works_list"))
+
+    paid_date, date_error = parse_iso_date(request.form.get("paid_date", ""), "Дата оплати")
+    if date_error:
+        cur.close()
+        flash(date_error, "error")
+        return redirect(url_for("works_list"))
+
+    paid_note = request.form.get("note", "").strip()
+
+    cur.execute(
+        "UPDATE works SET paid_date = %s, paid_note = %s WHERE id = %s",
+        (paid_date, paid_note, work_id),
+    )
+    cur.close()
+    db.commit()
+    flash("Роботу відмічено як сплачену.", "success")
+    return redirect_back()
 
 
 @app.post("/works/<int:work_id>/submit")
@@ -771,7 +861,7 @@ def submit_work(work_id: int) -> str:
     cur.close()
     db.commit()
     flash("Роботу здано.", "success")
-    return redirect(url_for("works_list"))
+    return redirect_back()
 
 
 if __name__ == "__main__":
